@@ -1,40 +1,18 @@
 local player = game.Players.LocalPlayer
+
+task.wait(3)
+
 local playerGui = player:WaitForChild("PlayerGui")
 
 if playerGui:FindFirstChild("TheDarkScriptGUI") then
 	playerGui.TheDarkScriptGUI:Destroy()
 end
 
-if game:GetService("CoreGui"):FindFirstChild("TheDarkScriptGUI") then
-	game:GetService("CoreGui").TheDarkScriptGUI:Destroy()
-end
-
-local function createGUI()
-	local ScreenGui = Instance.new("ScreenGui")
-	ScreenGui.Name = game:GetService("HttpService"):GenerateGUID(false)
-	ScreenGui.ResetOnSpawn = false
-	ScreenGui.Parent = game:GetService("CoreGui")
-	ScreenGui.Enabled = true
-	
-	return ScreenGui
-end
-
-local ScreenGui
-
-for i = 1, 3 do
-	task.wait(1)
-	ScreenGui = createGUI()
-	if ScreenGui and ScreenGui.Parent then
-		break
-	end
-end
-
-if not ScreenGui or not ScreenGui.Parent then
-	ScreenGui = Instance.new("ScreenGui")
-	ScreenGui.Name = game:GetService("HttpService"):GenerateGUID(false)
-	ScreenGui.ResetOnSpawn = false
-	ScreenGui.Parent = playerGui
-end
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "TheDarkScriptGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = playerGui
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 750, 0, 500)
