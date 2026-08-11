@@ -5,10 +5,14 @@ if playerGui:FindFirstChild("TheDarkScriptGUI") then
 	playerGui.TheDarkScriptGUI:Destroy()
 end
 
+if game:GetService("CoreGui"):FindFirstChild("TheDarkScriptGUI") then
+	game:GetService("CoreGui").TheDarkScriptGUI:Destroy()
+end
+
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "TheDarkScriptGUI"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = playerGui
+ScreenGui.Parent = game:GetService("CoreGui")
 
 
 local MainFrame = Instance.new("Frame")
