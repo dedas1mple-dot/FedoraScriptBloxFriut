@@ -12,8 +12,7 @@ local function createESP(targetPlayer)
 		highlight.Name = "ESPHighlight"
 		highlight.FillColor = Color3.fromRGB(255, 75, 100)
 		highlight.FillTransparency = 0.5
-		highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-		highlight.OutlineTransparency = 0
+		highlight.OutlineTransparency = 1
 		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 		highlight.Parent = character
 	end
