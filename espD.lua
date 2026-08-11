@@ -12,6 +12,7 @@ local function createESP(targetPlayer)
 		highlight.Name = "ESPHighlight"
 		highlight.FillColor = Color3.fromRGB(255, 75, 100)
 		highlight.FillTransparency = 0.5
+		highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
 		highlight.OutlineTransparency = 1
 		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 		highlight.Parent = character
@@ -75,5 +76,18 @@ enableESP()
 game:GetService("CoreGui").ChildRemoved:Connect(function(child)
 	if child.Name == "ESPHighlight" and espEnabled then
 		enableESP()
+	end
+end)
+
+local playerGui = player:WaitForChild("PlayerGui")
+playerGui.ChildRemoved:Connect(function(child)
+	if child.Name == "TheDarkScriptGUI" then
+		espEnabled = false
+		for _, plr in pairs(game.Players:GetPlayers()) do
+			removeESP(plr)
+		end
+		for _, conn in pairs(connections) do
+			conn:Disconnect()
+		end
 	end
 end)
