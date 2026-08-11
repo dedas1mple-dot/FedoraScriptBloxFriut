@@ -638,4 +638,19 @@ VisualsLayout.Parent = VisualsCol
 
 
 local ESPSection = CreateSection(VisualsCol, "ESP", 90)
+
+local espEnabled = false
 local ESPToggle, getESPState = CreateToggle(ESPSection, "ESP Enabled", false)
+
+ESPToggle.MouseButton1Click:Connect(function()
+	task.wait(0.1)
+	if getESPState() then
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/твойюзер/твойрепо/main/esp.lua"))()
+	else
+		for _, plr in pairs(game.Players:GetPlayers()) do
+			if plr.Character and plr.Character:FindFirstChild("ESPHighlight") then
+				plr.Character.ESPHighlight:Destroy()
+			end
+		end
+	end
+end)
