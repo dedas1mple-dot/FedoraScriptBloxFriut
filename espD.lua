@@ -3,6 +3,7 @@ local runService = game:GetService("RunService")
 
 local espEnabled = true
 local connections = {}
+local highlightCount = 0
 
 local function createESP(targetPlayer)
 	if targetPlayer == player then return end
@@ -16,12 +17,14 @@ local function createESP(targetPlayer)
 		highlight.OutlineTransparency = 1
 		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 		highlight.Parent = character
+		highlightCount = highlightCount + 1
 	end
 	
 	local function onCharacterRemoving(character)
 		local highlight = character:FindFirstChild("ESPHighlight")
 		if highlight then
 			highlight:Destroy()
+			highlightCount = highlightCount - 1
 		end
 	end
 	
@@ -61,6 +64,7 @@ local function enableESP()
 end
 
 local function disableESP()
+	espEnabled = false
 	for _, plr in pairs(game.Players:GetPlayers()) do
 		removeESP(plr)
 	end
@@ -73,21 +77,9 @@ end
 
 enableESP()
 
-game:GetService("CoreGui").ChildRemoved:Connect(function(child)
-	if child.Name == "ESPHighlight" and espEnabled then
-		enableESP()
-	end
-end)
-
 local playerGui = player:WaitForChild("PlayerGui")
 playerGui.ChildRemoved:Connect(function(child)
 	if child.Name == "TheDarkScriptGUI" then
-		espEnabled = false
-		for _, plr in pairs(game.Players:GetPlayers()) do
-			removeESP(plr)
-		end
-		for _, conn in pairs(connections) do
-			conn:Disconnect()
-		end
+		disableESP()
 	end
 end)
