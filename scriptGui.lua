@@ -1,7 +1,4 @@
 local player = game.Players.LocalPlayer
-
-task.wait(3)
-
 local playerGui = player:WaitForChild("PlayerGui")
 
 if playerGui:FindFirstChild("TheDarkScriptGUI") then
@@ -11,8 +8,16 @@ end
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "TheDarkScriptGUI"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = playerGui
+
+spawn(function()
+    while task.wait(1) do
+        if not ScreenGui.Parent then
+            ScreenGui.Parent = playerGui
+        end
+    end
+end)
+
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 750, 0, 500)
