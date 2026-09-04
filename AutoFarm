@@ -1,13 +1,10 @@
--- AutoFarm.lua
--- Автофарм для Blox Fruit (Bandit, Monkey, Gorilla)
-
+-- AutoFarm.lua (обход античита через плавное перемещение)
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
 
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 
 -- ================== ФЛАГ РАБОТЫ ==================
@@ -21,10 +18,10 @@ local QUESTS = {
     {
         minLevel = 0,
         islandName = "Starter Island",
-        questGiverName = "Bandit Quest Giver",  -- возможно "Bandit Quest Giver 1"
+        questGiverName = "Bandit Quest Giver",
         mobName = "Bandit",
         requiredKills = 5,
-        islandPosition = Vector3.new(100, 10, 100),  -- координаты безопасной точки на острове
+        islandPosition = Vector3.new(100, 10, 100),
     },
     {
         minLevel = 10,
@@ -42,10 +39,33 @@ local QUESTS = {
         requiredKills = 7,
         islandPosition = Vector3.new(250, 25, 350),
     },
-    -- Добавьте следующие уровни позже
 }
 
--- ================== ФУНКЦИИ ПОИСКА ==================
+-- ================== ПЛАВНОЕ ПЕРЕМЕЩЕНИЕ ==================
+local isMoving = false
+
+local function smoothMoveTo(targetPos, speed)
+    speed = speed or 150 -- скорость в studs/sec (можно увеличить до 300)
+    local currentPos = rootPart.Position
+    local distance = (targetPos - currentPos).Magnitude
+    if distance < 1 then return end
+
+    isMoving = true
+    local startTime = tick()
+    local startCF = rootPart.CFrame
+    local targetCF = CFrame.new(targetPos)
+
+    while (tick() - startTime) < (distance / speed) and autoFarmActive do
+        local alpha = (tick() - startTime) / (distance / speed)
+        alpha = math.clamp(alpha, 0, 1)
+        rootPart.CFrame = startCF:Lerp(targetCF, alpha)
+        task.wait()
+    end
+    rootPart.CFrame = targetCF
+    isMoving = false
+end
+
+-- ================== ПОИСК МОДЕЛЕЙ ==================
 local function findNearestModel(name, parent)
     parent = parent or workspace
     local nearest = nil
@@ -65,13 +85,6 @@ local function findNearestModel(name, parent)
     return nearest, minDistance
 end
 
--- ================== ТЕЛЕПОРТ ==================
-local function teleportTo(position)
-    if rootPart and rootPart.Parent then
-        rootPart.CFrame = CFrame.new(position)
-    end
-end
-
 -- ================== ВЗАИМОДЕЙСТВИЕ (КЛИК) ==================
 local function clickModel(model)
     if not model then return end
@@ -79,15 +92,12 @@ local function clickModel(model)
     if clickDetector then
         fireclickdetector(clickDetector)
     else
-        -- Если нет ClickDetector, пробуем ProximityPrompt
         local prompt = model:FindFirstChildOfClass("ProximityPrompt")
         if prompt then
             fireproximityprompt(prompt)
         else
-            -- Симуляция клика мышью по позиции модели
             local hrp = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Head")
             if hrp then
-                -- Перемещаем мышь на объект и кликаем
                 local screenPos, onScreen = workspace.CurrentCamera:WorldToScreenPoint(hrp.Position)
                 if onScreen then
                     mousemoveabs(screenPos.X, screenPos.Y)
@@ -107,16 +117,14 @@ local function takeQuest(questGiverName)
         return false
     end
 
-    -- Подходим к NPC (если далеко)
     if dist > 50 then
         local hrp = questGiver:FindFirstChild("HumanoidRootPart") or questGiver:FindFirstChild("Head")
         if hrp then
-            teleportTo(hrp.Position + Vector3.new(0, 3, 5))
-            task.wait(1)
+            smoothMoveTo(hrp.Position + Vector3.new(0, 3, 5), 200)
+            task.wait(0.5)
         end
     end
 
-    -- Кликаем по NPC (берем или сдаем квест)
     clickModel(questGiver)
     task.wait(1)
     return true
@@ -128,30 +136,27 @@ local function attackMob(mob)
     local mobHumanoid = mob:FindFirstChildOfClass("Humanoid")
     if not mobHumanoid or mobHumanoid.Health <= 0 then return end
 
-    -- Телепортируемся рядом с мобом
     local mobHRP = mob:FindFirstChild("HumanoidRootPart") or mob:FindFirstChild("Head")
     if mobHRP then
-        teleportTo(mobHRP.Position + Vector3.new(0, 0, -5))
-        task.wait(0.5)
-        -- Клик по мобу (атака)
+        smoothMoveTo(mobHRP.Position + Vector3.new(0, 0, -3), 250)
+        task.wait(0.3)
         clickModel(mob)
-        task.wait(0.8)
+        task.wait(0.5)
     end
 end
 
 -- ================== ПРОВЕРКА ЗДОРОВЬЯ ==================
 local function checkHealth()
     if humanoid.Health <= 30 then
-        -- Находим безопасную точку (используем текущий остров)
-        local currentQuest = QUESTS[1] -- fallback
         local level = player.Data and player.Data.Level and player.Data.Level.Value or 1
+        local currentQuest = QUESTS[1]
         for _, quest in ipairs(QUESTS) do
             if level >= quest.minLevel then
                 currentQuest = quest
             end
         end
-        teleportTo(currentQuest.islandPosition)
-        task.wait(5) -- ждём восстановления здоровья
+        smoothMoveTo(currentQuest.islandPosition, 200)
+        task.wait(5)
     end
 end
 
@@ -173,19 +178,19 @@ local function autoFarmLoop()
         local level = player.Data and player.Data.Level and player.Data.Level.Value or 1
         local currentQuest = getCurrentQuest(level)
 
-        -- Телепортируемся на остров, если далеко
+        -- Перемещаемся на остров, если далеко
         if (rootPart.Position - currentQuest.islandPosition).Magnitude > 200 then
-            teleportTo(currentQuest.islandPosition)
-            task.wait(2)
+            smoothMoveTo(currentQuest.islandPosition, 180)
+            task.wait(1)
         end
 
-        -- Получаем квест
+        -- Берём квест
         if not takeQuest(currentQuest.questGiverName) then
             task.wait(2)
             continue
         end
 
-        -- Убиваем необходимое количество мобов
+        -- Убиваем мобов
         local killed = 0
         while killed < currentQuest.requiredKills and autoFarmActive do
             checkHealth()
@@ -193,14 +198,12 @@ local function autoFarmLoop()
             local mob, dist = findNearestModel(currentQuest.mobName)
             if mob then
                 attackMob(mob)
-                -- Проверяем, умер ли моб
                 local mobHumanoid = mob:FindFirstChildOfClass("Humanoid")
                 if mobHumanoid and mobHumanoid.Health <= 0 then
                     killed = killed + 1
                     task.wait(0.5)
                 end
             else
-                -- Мобов нет, ждём респавна
                 task.wait(2)
             end
             task.wait(1)
