@@ -1,6 +1,4 @@
-
 -- pvp.lua
--- Заглушка для будущих PvP-функций
 local PvPContainer = _G.PvPContainer
 
 local Section = _G.CreateSection(PvPContainer, "PvP Features", 100)
