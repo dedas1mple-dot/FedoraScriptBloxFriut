@@ -1,4 +1,4 @@
--- AutoFarm.lua (с координатами для Bandit Quest Giver)
+-- AutoFarm.lua (исправлено: без глобальных кликов, с экипировкой кулаков)
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
@@ -6,6 +6,7 @@ local rootPart = character:WaitForChild("HumanoidRootPart")
 
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
 -- ================== ФЛАГ РАБОТЫ ==================
 local autoFarmActive = true
@@ -14,29 +15,15 @@ _G.StopAutoFarm = function()
 end
 
 -- ================== НАСТРОЙКИ ==================
--- Добавляем координаты квестодателей (заполняйте по мере получения)
 local QUESTS = {
     {
         minLevel = 0,
         questGiverName = "Bandit Quest Giver",
-        questGiverPosition = Vector3.new(1058.99231, 16.1369934, 1551.73328), -- координаты Bandit Quest Giver
         questGiverCFrame = CFrame.new(1058.99231, 16.1369934, 1551.73328, 0.999752104, -0, -0.0222652908, 0, 1, -0, 0.0222652908, 0, 0.999752104),
         mobName = "Bandit",
         requiredKills = 5,
     },
-    {
-        minLevel = 10,
-        questGiverName = "Monkey Quest Giver",
-        -- координаты пока не указаны, будет использоваться поиск
-        mobName = "Monkey",
-        requiredKills = 6,
-    },
-    {
-        minLevel = 20,
-        questGiverName = "Gorilla Quest Giver",
-        mobName = "Gorilla",
-        requiredKills = 7,
-    },
+    -- Добавьте следующие квесты, когда будут координаты
 }
 
 -- ================== ПЛАВНОЕ ПЕРЕМЕЩЕНИЕ ==================
@@ -76,41 +63,47 @@ local function findNearestModel(name, parent)
     return nearest, minDistance
 end
 
--- ================== ВЗАИМОДЕЙСТВИЕ (КЛИК) ==================
-local function clickModel(model)
-    if not model then return end
+-- ================== ВЗАИМОДЕЙСТВИЕ БЕЗ ГЛОБАЛЬНЫХ КЛИКОВ ==================
+local function interactWithModel(model)
+    if not model then return false end
     local clickDetector = model:FindFirstChildOfClass("ClickDetector")
     if clickDetector then
         fireclickdetector(clickDetector)
-    else
-        local prompt = model:FindFirstChildOfClass("ProximityPrompt")
-        if prompt then
-            fireproximityprompt(prompt)
-        else
-            local hrp = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Head")
-            if hrp then
-                local screenPos, onScreen = workspace.CurrentCamera:WorldToScreenPoint(hrp.Position)
-                if onScreen then
-                    mousemoveabs(screenPos.X, screenPos.Y)
-                    task.wait(0.1)
-                    mouse1click()
-                end
-            end
+        return true
+    end
+
+    local prompt = model:FindFirstChildOfClass("ProximityPrompt")
+    if prompt then
+        fireproximityprompt(prompt)
+        return true
+    end
+
+    return false
+end
+
+-- ================== ВЫБОР КВЕСТА В GUI ==================
+local function selectQuestInGui()
+    -- Ищем кнопку Accept или подобную
+    local playerGui = player:WaitForChild("PlayerGui")
+    local buttons = playerGui:GetDescendants()
+    for _, obj in ipairs(buttons) do
+        if obj:IsA("TextButton") and (string.find(string.lower(obj.Text), "accept") or string.find(string.lower(obj.Text), "ok") or string.find(string.lower(obj.Text), "да")) then
+            -- Нажимаем кнопку
+            obj.MouseButton1Click:Fire()
+            return true
         end
     end
+    return false
 end
 
 -- ================== ПОЛУЧЕНИЕ КВЕСТА ==================
 local function takeQuest(quest)
-    local questGiver = nil
+    -- Перемещаемся к NPC
     if quest.questGiverCFrame then
-        -- Перемещаемся к известной точке
         smoothMoveTo(quest.questGiverCFrame, 200)
-        task.wait(1) -- ждём прогрузки NPC
-        questGiver = findNearestModel(quest.questGiverName)
+        task.wait(1) -- ждём прогрузки
     else
-        -- Ищем NPC по всему миру (может не сработать из-за оптимизации)
-        questGiver, _ = findNearestModel(quest.questGiverName)
+        local questGiver = findNearestModel(quest.questGiverName)
         if questGiver then
             local hrp = questGiver:FindFirstChild("HumanoidRootPart") or questGiver:FindFirstChild("Head")
             if hrp then
@@ -120,14 +113,16 @@ local function takeQuest(quest)
         end
     end
 
-    if not questGiver then
-        warn("Квестодатель не найден: " .. quest.questGiverName)
-        return false
+    -- Кликаем по NPC
+    local questGiver = findNearestModel(quest.questGiverName)
+    if questGiver and interactWithModel(questGiver) then
+        task.wait(1)
+        -- Пытаемся выбрать квест в открывшемся меню
+        selectQuestInGui()
+        task.wait(1)
+        return true
     end
-
-    clickModel(questGiver)
-    task.wait(1)
-    return true
+    return false
 end
 
 -- ================== АТАКА МОБА ==================
@@ -140,7 +135,8 @@ local function attackMob(mob)
     if mobHRP then
         smoothMoveTo(CFrame.new(mobHRP.Position + Vector3.new(0, 0, -3)), 250)
         task.wait(0.3)
-        clickModel(mob)
+        -- Взаимодействуем с мобом (атакуем)
+        interactWithModel(mob) -- Если есть ClickDetector, сработает
         task.wait(0.5)
     end
 end
@@ -155,17 +151,9 @@ local function checkHealth()
                 currentQuest = quest
             end
         end
-        -- Летим к квестодателю (безопасное место)
+        -- Летим к квестодателю
         if currentQuest.questGiverCFrame then
             smoothMoveTo(currentQuest.questGiverCFrame, 200)
-        else
-            local questGiver = findNearestModel(currentQuest.questGiverName)
-            if questGiver then
-                local hrp = questGiver:FindFirstChild("HumanoidRootPart") or questGiver:FindFirstChild("Head")
-                if hrp then
-                    smoothMoveTo(CFrame.new(hrp.Position + Vector3.new(0, 10, 0)), 200)
-                end
-            end
         end
         task.wait(5)
     end
@@ -185,6 +173,10 @@ local function getCurrentQuest(level)
 end
 
 local function autoFarmLoop()
+    -- Экипируем кулаки (слот 1)
+    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.One, false, game)
+    task.wait(0.5)
+
     while autoFarmActive and player.Character do
         local level = player.Data and player.Data.Level and player.Data.Level.Value or 1
         local currentQuest = getCurrentQuest(level)
@@ -209,7 +201,7 @@ local function autoFarmLoop()
                     task.wait(0.5)
                 end
             else
-                task.wait(2) -- ждём респавна
+                task.wait(2)
             end
             task.wait(1)
         end
