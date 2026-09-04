@@ -1,4 +1,4 @@
--- AutoFarm.lua (обход античита через плавное перемещение)
+-- AutoFarm.lua (исправлено: без фиксированных координат)
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
@@ -17,27 +17,21 @@ end
 local QUESTS = {
     {
         minLevel = 0,
-        islandName = "Starter Island",
-        questGiverName = "Bandit Quest Giver",
+        questGiverName = "Bandit Quest Giver",   -- проверьте точное имя в игре!
         mobName = "Bandit",
         requiredKills = 5,
-        islandPosition = Vector3.new(100, 10, 100),
     },
     {
         minLevel = 10,
-        islandName = "Jungle",
         questGiverName = "Monkey Quest Giver",
         mobName = "Monkey",
         requiredKills = 6,
-        islandPosition = Vector3.new(200, 20, 300),
     },
     {
         minLevel = 20,
-        islandName = "Jungle",
         questGiverName = "Gorilla Quest Giver",
         mobName = "Gorilla",
         requiredKills = 7,
-        islandPosition = Vector3.new(250, 25, 350),
     },
 }
 
@@ -45,7 +39,7 @@ local QUESTS = {
 local isMoving = false
 
 local function smoothMoveTo(targetPos, speed)
-    speed = speed or 150 -- скорость в studs/sec (можно увеличить до 300)
+    speed = speed or 200 -- скорость (можно подстроить)
     local currentPos = rootPart.Position
     local distance = (targetPos - currentPos).Magnitude
     if distance < 1 then return end
@@ -117,7 +111,8 @@ local function takeQuest(questGiverName)
         return false
     end
 
-    if dist > 50 then
+    -- Плавно подлетаем, если далеко
+    if dist > 20 then
         local hrp = questGiver:FindFirstChild("HumanoidRootPart") or questGiver:FindFirstChild("Head")
         if hrp then
             smoothMoveTo(hrp.Position + Vector3.new(0, 3, 5), 200)
@@ -138,6 +133,7 @@ local function attackMob(mob)
 
     local mobHRP = mob:FindFirstChild("HumanoidRootPart") or mob:FindFirstChild("Head")
     if mobHRP then
+        -- Подлетаем вплотную
         smoothMoveTo(mobHRP.Position + Vector3.new(0, 0, -3), 250)
         task.wait(0.3)
         clickModel(mob)
@@ -155,7 +151,14 @@ local function checkHealth()
                 currentQuest = quest
             end
         end
-        smoothMoveTo(currentQuest.islandPosition, 200)
+        -- Летим к квестодателю (безопасная зона)
+        local questGiver, _ = findNearestModel(currentQuest.questGiverName)
+        if questGiver then
+            local hrp = questGiver:FindFirstChild("HumanoidRootPart") or questGiver:FindFirstChild("Head")
+            if hrp then
+                smoothMoveTo(hrp.Position + Vector3.new(0, 10, 0), 200)
+            end
+        end
         task.wait(5)
     end
 end
@@ -178,15 +181,9 @@ local function autoFarmLoop()
         local level = player.Data and player.Data.Level and player.Data.Level.Value or 1
         local currentQuest = getCurrentQuest(level)
 
-        -- Перемещаемся на остров, если далеко
-        if (rootPart.Position - currentQuest.islandPosition).Magnitude > 200 then
-            smoothMoveTo(currentQuest.islandPosition, 180)
-            task.wait(1)
-        end
-
-        -- Берём квест
+        -- Берем квест
         if not takeQuest(currentQuest.questGiverName) then
-            task.wait(2)
+            task.wait(5)
             continue
         end
 
@@ -204,12 +201,12 @@ local function autoFarmLoop()
                     task.wait(0.5)
                 end
             else
-                task.wait(2)
+                task.wait(2) -- ждём респавна
             end
             task.wait(1)
         end
 
-        -- Сдаём квест
+        -- Сдаем квест
         takeQuest(currentQuest.questGiverName)
         task.wait(2)
 
