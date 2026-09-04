@@ -1,37 +1,30 @@
-
 -- farm.lua
 local FarmContainer = _G.FarmContainer
 
--- Пример секции с функциями фарма
 local AutoFarmSection = _G.CreateSection(FarmContainer, "Auto Farming", 120)
 
--- Тумблер "Auto Click"
-local autoClickToggle, getAutoClickState = _G.CreateToggle(AutoFarmSection, "Auto Click", false)
-autoClickToggle.MouseButton1Click:Connect(function()
+-- Тумблер Auto Farm (переименовано из Auto Click)
+local autoFarmToggle, getAutoFarmState = _G.CreateToggle(AutoFarmSection, "Auto Farm", false)
+autoFarmToggle.MouseButton1Click:Connect(function()
     task.wait(0.1)
-    if getAutoClickState() then
-        -- Запустить автокликер (пример)
-        _G.autoClicker = true
-        spawn(function()
-            while _G.autoClicker do
-                -- здесь код клика (например, использовать VirtualInputManager или game:GetService("ReplicatedStorage")...)
-                task.wait(0.1)
-            end
+    if getAutoFarmState() then
+        -- Загружаем внешний скрипт AutoFarm
+        local success, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/dedas1mple-dot/FedoraScriptBloxFriut/refs/heads/main/AutoFarm"))()
         end)
+        if not success then
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "Auto Farm",
+                Text = "Ошибка загрузки: " .. tostring(err),
+                Duration = 5
+            })
+        end
     else
-        _G.autoClicker = false
+        -- Отключаем автофарм, если он запущен (функция должна быть глобальной)
+        if _G.StopAutoFarm then
+            _G.StopAutoFarm()
+        end
     end
-end)
-
--- Кнопка "Teleport to Nearest Enemy"
-local teleportButton = _G.CreateButton(AutoFarmSection, "Teleport to Nearest Enemy")
-teleportButton.MouseButton1Click:Connect(function()
-    -- Заглушка: найти ближайшего NPC и телепортироваться (реализация позже)
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "Farm",
-        Text = "Функция в разработке",
-        Duration = 3
-    })
 end)
 
 -- Дополнительная секция для будущих функций
