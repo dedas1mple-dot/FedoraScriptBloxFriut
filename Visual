@@ -15,7 +15,7 @@ local playerConnections = {}
 local npcHighlights = {}
 local npcScanThread = nil
 
--- Папки для сканирования NPC (можно расширить список)
+-- Папки для сканирования NPC (можно расширить)
 local NPC_FOLDERS = {"Enemies", "Bosses", "NPCs", "Mobs"}
 
 local function findNPCFolders()
@@ -69,22 +69,6 @@ local function clearPlayerESP()
         conn:Disconnect()
     end
     playerConnections = {}
-end
-
--- Вместо старого scanForNPCs вставьте этот код:
-
--- Список папок, где могут находиться NPC (можно расширить)
-local NPC_FOLDERS = {"Enemies", "Bosses", "NPCs", "Mobs"}
-
-local function findNPCFolders()
-    local folders = {}
-    for _, folderName in ipairs(NPC_FOLDERS) do
-        local folder = workspace:FindFirstChild(folderName)
-        if folder then
-            table.insert(folders, folder)
-        end
-    end
-    return folders
 end
 
 local function scanForNPCs()
@@ -158,7 +142,7 @@ function _G.enableESP()
     npcScanThread = task.spawn(function()
         while espActive do
             scanForNPCs()
-            task.wait(5)  -- сканирование раз в 5 секунд (можно увеличить до 10)
+            task.wait(5)  -- интервал 5 секунд
         end
     end)
 end
