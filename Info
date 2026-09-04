@@ -1,1 +1,16 @@
 
+-- info.lua
+local InfoContainer = _G.InfoContainer
+
+local InfoSection = _G.CreateSection(InfoContainer, "Information", 210)
+
+_G.CreateLabel(InfoSection, "Devs")
+local DevsValue = _G.CreateLabel(InfoSection, "Fedora team")
+DevsValue.Font = Enum.Font.GothamBold
+DevsValue.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+_G.CreateLabel(InfoSection, "Version")
+_G.CreateLabel(InfoSection, "0.0.1")
+
+_G.CreateLabel(InfoSection, "Game")
+_G.CreateLabel(InfoSection, "Blox Fruit")
