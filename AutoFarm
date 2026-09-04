@@ -1,4 +1,4 @@
--- AutoFarm.lua (исправлена атака)
+-- AutoFarm.lua (исправлено: клик по экрану для NPC)
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
@@ -64,7 +64,20 @@ local function findNearestModel(name, parent)
     return nearest, minDistance
 end
 
--- ================== ВЗАИМОДЕЙСТВИЕ БЕЗ СВОРАЧИВАНИЯ ==================
+-- ================== ВЗАИМОДЕЙСТВИЕ (КЛИК ПО ЭКРАНУ) ==================
+local function clickOnScreenPosition(position)
+    local camera = workspace.CurrentCamera
+    local screenPos, onScreen = camera:WorldToScreenPoint(position)
+    if not onScreen then return false end
+
+    -- Перемещаем мышь и кликаем
+    mousemoveabs(screenPos.X, screenPos.Y)
+    task.wait(0.1)
+    mouse1click()
+    task.wait(0.2)
+    return true
+end
+
 local function interactWithModel(model)
     if not model then return false end
 
@@ -82,14 +95,10 @@ local function interactWithModel(model)
         return true
     end
 
-    -- 3. RemoteEvent для диалога
-    local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
-    if remotes then
-        local dialogEvent = remotes:FindFirstChild("Dialog") or remotes:FindFirstChild("Talk") or remotes:FindFirstChild("Quest")
-        if dialogEvent then
-            dialogEvent:FireServer(model)
-            return true
-        end
+    -- 3. Клик по экрану по позиции NPC
+    local hrp = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Head")
+    if hrp then
+        return clickOnScreenPosition(hrp.Position)
     end
 
     return false
@@ -113,6 +122,7 @@ end
 
 -- ================== ПОЛУЧЕНИЕ КВЕСТА ==================
 local function takeQuest(quest)
+    -- Перемещаемся к NPC
     if quest.questGiverCFrame then
         smoothMoveTo(quest.questGiverCFrame, 200)
         task.wait(1) -- ждём прогрузки NPC
@@ -127,6 +137,7 @@ local function takeQuest(quest)
         end
     end
 
+    -- Находим NPC и взаимодействуем
     local questGiver = findNearestModel(quest.questGiverName)
     if questGiver and interactWithModel(questGiver) then
         task.wait(1)
@@ -146,17 +157,16 @@ local function attackMob(mob)
     local mobHRP = mob:FindFirstChild("HumanoidRootPart") or mob:FindFirstChild("Head")
     if not mobHRP then return end
 
-    -- Подлетаем ближе и поворачиваемся к мобу
-    local targetPos = mobHRP.Position + Vector3.new(0, 0, -3)
-    smoothMoveTo(CFrame.lookAt(targetPos, mobHRP.Position), 250)
+    -- Подлетаем и поворачиваемся к мобу
+    smoothMoveTo(CFrame.lookAt(mobHRP.Position + Vector3.new(0,0,-3), mobHRP.Position), 250)
     task.wait(0.3)
 
-    -- 1. Пробуем ClickDetector
+    -- Пробуем взаимодействовать (клик по мобу)
     if interactWithModel(mob) then
         return
     end
 
-    -- 2. Пробуем RemoteEvent для атаки
+    -- Если не получилось, пробуем RemoteEvent для атаки
     local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
     if remotes then
         local attackEvent = remotes:FindFirstChild("Attack") or remotes:FindFirstChild("Damage") or remotes:FindFirstChild("Combat")
@@ -166,10 +176,8 @@ local function attackMob(mob)
         end
     end
 
-    -- 3. Безопасный клик мышью (не сворачивает экран)
-    VirtualUser:ClickButton1Down(Vector2.new(0,0))
-    task.wait(0.1)
-    VirtualUser:ClickButton1Up(Vector2.new(0,0))
+    -- Запасной вариант: клик по экрану
+    clickOnScreenPosition(mobHRP.Position)
     task.wait(0.2)
 end
 
@@ -235,7 +243,8 @@ local function autoFarmLoop()
             task.wait(1)
         end
 
-        takeQuest(currentQuest) -- сдача квеста
+        -- Сдаём квест
+        takeQuest(currentQuest)
         task.wait(2)
 
         print("Квест выполнен!")
