@@ -1,1 +1,39 @@
 
+-- farm.lua
+local FarmContainer = _G.FarmContainer
+
+-- Пример секции с функциями фарма
+local AutoFarmSection = _G.CreateSection(FarmContainer, "Auto Farming", 120)
+
+-- Тумблер "Auto Click"
+local autoClickToggle, getAutoClickState = _G.CreateToggle(AutoFarmSection, "Auto Click", false)
+autoClickToggle.MouseButton1Click:Connect(function()
+    task.wait(0.1)
+    if getAutoClickState() then
+        -- Запустить автокликер (пример)
+        _G.autoClicker = true
+        spawn(function()
+            while _G.autoClicker do
+                -- здесь код клика (например, использовать VirtualInputManager или game:GetService("ReplicatedStorage")...)
+                task.wait(0.1)
+            end
+        end)
+    else
+        _G.autoClicker = false
+    end
+end)
+
+-- Кнопка "Teleport to Nearest Enemy"
+local teleportButton = _G.CreateButton(AutoFarmSection, "Teleport to Nearest Enemy")
+teleportButton.MouseButton1Click:Connect(function()
+    -- Заглушка: найти ближайшего NPC и телепортироваться (реализация позже)
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Farm",
+        Text = "Функция в разработке",
+        Duration = 3
+    })
+end)
+
+-- Дополнительная секция для будущих функций
+local MiscSection = _G.CreateSection(FarmContainer, "Misc", 100)
+_G.CreateLabel(MiscSection, "Здесь можно добавить другие функции фарма.")
