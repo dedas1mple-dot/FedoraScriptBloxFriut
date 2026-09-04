@@ -15,7 +15,6 @@ local playerConnections = {}
 local npcHighlights = {}
 local npcScanThread = nil
 
--- ============ ФУНКЦИИ ДЛЯ ИГРОКОВ ============
 local function addESPToPlayer(targetPlayer)
     if targetPlayer == game.Players.LocalPlayer then return end
 
@@ -58,7 +57,6 @@ local function clearPlayerESP()
     playerConnections = {}
 end
 
--- ============ ФУНКЦИИ ДЛЯ NPC ============
 local function scanForNPCs()
     local npcModels = {}
     for _, obj in ipairs(workspace:GetDescendants()) do
@@ -102,7 +100,6 @@ local function clearNPCESP()
     npcHighlights = {}
 end
 
--- ============ ГЛОБАЛЬНЫЕ ФУНКЦИИ УПРАВЛЕНИЯ ============
 function _G.enableESP()
     if espActive then return end
     espActive = true
@@ -139,7 +136,7 @@ function _G.cleanupESP()
     _G.disableESP()
 end
 
--- ==== СОЗДАНИЕ UI ДЛЯ ESP ====
+-- UI для ESP
 local ESPSection = _G.CreateSection(VisualsContainer, "ESP", 90)
 local ESPToggle, getESPState = _G.CreateToggle(ESPSection, "ESP Enabled", false)
 
@@ -152,5 +149,4 @@ ESPToggle.MouseButton1Click:Connect(function()
     end
 end)
 
--- Устанавливаем глобальную очистку (используется menu.lua при удалении GUI)
 _G.cleanupAll = _G.cleanupESP
