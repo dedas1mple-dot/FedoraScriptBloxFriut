@@ -368,10 +368,10 @@ local loadedModules = {}
 
 local function loadModule(moduleName)
     local moduleUrls = {
-        General = "https://raw.githubusercontent.com/your_username/BloxFruit-Script/main/general.lua",
-        PvP = "https://raw.githubusercontent.com/your_username/BloxFruit-Script/main/pvp.lua",
-        Visuals = "https://raw.githubusercontent.com/your_username/BloxFruit-Script/main/visuals.lua",
-        Info = "https://raw.githubusercontent.com/your_username/BloxFruit-Script/main/info.lua"
+        General = "https://raw.githubusercontent.com/dedas1mple-dot/FedoraScriptBloxFriut/refs/heads/main/General",
+        PvP = "https://raw.githubusercontent.com/dedas1mple-dot/FedoraScriptBloxFriut/refs/heads/main/Pvp",
+        Visuals = "https://raw.githubusercontent.com/dedas1mple-dot/FedoraScriptBloxFriut/refs/heads/main/Visual",
+        Info = "https://raw.githubusercontent.com/dedas1mple-dot/FedoraScriptBloxFriut/refs/heads/main/Info"
     }
     local url = moduleUrls[moduleName]
     if not url then return end
@@ -433,7 +433,6 @@ TabInfo.MouseButton1Click:Connect(function() switchTab("Info") end)
 
 -- =================== ФУНКЦИЯ ВЫГРУЗКИ ===================
 function _G.UnloadMenu()
-    -- Анимация и удаление GUI
     local currentPos = MainFrame.Position
     local targetPos = UDim2.new(currentPos.X.Scale, currentPos.X.Offset, 1, MainFrame.Size.Y.Offset / 2)
     local unloadAnimation = game:GetService("TweenService"):Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = targetPos})
@@ -446,7 +445,6 @@ end
 -- =================== ОБРАБОТКА УДАЛЕНИЯ GUI ===================
 playerGui.ChildRemoved:Connect(function(child)
     if child.Name == "TheDarkScriptGUI" then
-        -- Вызываем глобальную очистку, если она определена (например, для ESP)
         if _G.cleanupAll then
             _G.cleanupAll()
         end
