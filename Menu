@@ -347,7 +347,7 @@ end
 
 -- Добавляем вкладки (General, Farm, PvP, Visuals, Info)
 local TabGeneral, TabGeneralText, TabGeneralIcon = createTabButton("General", "rbxassetid://130068439240504", 60)
-local TabFarm, TabFarmText, TabFarmIcon = createTabButton("Farm", "rbxassetid://1234567890", 105) -- замените на свою иконку
+local TabFarm, TabFarmText, TabFarmIcon = createTabButton("Farm", "rbxassetid://11322093465", 105)
 local TabPvP, TabPvPText, TabPvPIcon = createTabButton("PvP", "rbxassetid://4391741881", 150)
 local TabVisuals, TabVisualsText, TabVisualsIcon = createTabButton("Visuals", "rbxassetid://113542807465335", 195)
 local TabInfo, TabInfoText, TabInfoIcon = createTabButton("Info", "rbxassetid://4871684504", 240)
