@@ -1,5 +1,5 @@
 -- AutoFarm.lua
--- Полноценный автофарм для Blox Fruit
+-- Автофарм для Blox Fruit (Bandit, Monkey, Gorilla)
 
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
@@ -10,34 +10,42 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 
-local autoFarmActive = true -- флаг работы
+-- ================== ФЛАГ РАБОТЫ ==================
+local autoFarmActive = true
 _G.StopAutoFarm = function()
     autoFarmActive = false
 end
 
 -- ================== НАСТРОЙКИ ==================
-local questData = {
-    -- Уровень, Остров, Имя квестодателя, Имя моба, Количество убийств, Координаты острова (для телепорта)
-    {level = 0,  island = "Starter Island", questGiver = "Bandit Quest Giver", mobName = "Bandit", mobCount = 5, pos = Vector3.new(100, 10, 100)},
-    {level = 10, island = "Jungle",       questGiver = "Monkey Quest Giver", mobName = "Monkey", mobCount = 6, pos = Vector3.new(200, 20, 300)},
-    {level = 20, island = "Pirate Village", questGiver = "Pirate Quest Giver", mobName = "Pirate", mobCount = 7, pos = Vector3.new(400, 30, 500)},
-    -- Добавьте следующие острова по мере необходимости
+local QUESTS = {
+    {
+        minLevel = 0,
+        islandName = "Starter Island",
+        questGiverName = "Bandit Quest Giver",  -- возможно "Bandit Quest Giver 1"
+        mobName = "Bandit",
+        requiredKills = 5,
+        islandPosition = Vector3.new(100, 10, 100),  -- координаты безопасной точки на острове
+    },
+    {
+        minLevel = 10,
+        islandName = "Jungle",
+        questGiverName = "Monkey Quest Giver",
+        mobName = "Monkey",
+        requiredKills = 6,
+        islandPosition = Vector3.new(200, 20, 300),
+    },
+    {
+        minLevel = 20,
+        islandName = "Jungle",
+        questGiverName = "Gorilla Quest Giver",
+        mobName = "Gorilla",
+        requiredKills = 7,
+        islandPosition = Vector3.new(250, 25, 350),
+    },
+    -- Добавьте следующие уровни позже
 }
 
--- Функция получения текущего квеста по уровню
-local function getCurrentQuest(level)
-    local current = questData[1]
-    for _, quest in ipairs(questData) do
-        if level >= quest.level then
-            current = quest
-        else
-            break
-        end
-    end
-    return current
-end
-
--- ================== ПОИСК ОБЪЕКТОВ ==================
+-- ================== ФУНКЦИИ ПОИСКА ==================
 local function findNearestModel(name, parent)
     parent = parent or workspace
     local nearest = nil
@@ -59,99 +67,136 @@ end
 
 -- ================== ТЕЛЕПОРТ ==================
 local function teleportTo(position)
-    if not character or not rootPart then return end
-    rootPart.CFrame = CFrame.new(position)
+    if rootPart and rootPart.Parent then
+        rootPart.CFrame = CFrame.new(position)
+    end
+end
+
+-- ================== ВЗАИМОДЕЙСТВИЕ (КЛИК) ==================
+local function clickModel(model)
+    if not model then return end
+    local clickDetector = model:FindFirstChildOfClass("ClickDetector")
+    if clickDetector then
+        fireclickdetector(clickDetector)
+    else
+        -- Если нет ClickDetector, пробуем ProximityPrompt
+        local prompt = model:FindFirstChildOfClass("ProximityPrompt")
+        if prompt then
+            fireproximityprompt(prompt)
+        else
+            -- Симуляция клика мышью по позиции модели
+            local hrp = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Head")
+            if hrp then
+                -- Перемещаем мышь на объект и кликаем
+                local screenPos, onScreen = workspace.CurrentCamera:WorldToScreenPoint(hrp.Position)
+                if onScreen then
+                    mousemoveabs(screenPos.X, screenPos.Y)
+                    task.wait(0.1)
+                    mouse1click()
+                end
+            end
+        end
+    end
 end
 
 -- ================== ПОЛУЧЕНИЕ КВЕСТА ==================
 local function takeQuest(questGiverName)
     local questGiver, dist = findNearestModel(questGiverName)
-    if questGiver then
-        -- Телепортируемся к квестодателю, если далеко
-        if dist > 50 then
-            local hrp = questGiver:FindFirstChild("HumanoidRootPart") or questGiver:FindFirstChild("Head")
-            if hrp then
-                teleportTo(hrp.Position + Vector3.new(0, 5, 5))
-                task.wait(1)
-            end
-        end
-        -- Нажимаем на NPC (клик по экрану или использование RemoteEvent)
-        -- В зависимости от версии игры нужно вызвать нужное событие. Пример:
-        -- game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Dialog"):FireServer(questGiver)
-        -- Или просто симулируем клик:
-        local clickPart = questGiver:FindFirstChild("ClickDetector")
-        if clickPart then
-            fireclickdetector(clickPart)
-        end
-        task.wait(1)
-        print("Квест получен")
-    else
+    if not questGiver then
         warn("Квестодатель не найден: " .. questGiverName)
+        return false
     end
+
+    -- Подходим к NPC (если далеко)
+    if dist > 50 then
+        local hrp = questGiver:FindFirstChild("HumanoidRootPart") or questGiver:FindFirstChild("Head")
+        if hrp then
+            teleportTo(hrp.Position + Vector3.new(0, 3, 5))
+            task.wait(1)
+        end
+    end
+
+    -- Кликаем по NPC (берем или сдаем квест)
+    clickModel(questGiver)
+    task.wait(1)
+    return true
 end
 
--- ================== УБИЙСТВО МОБОВ ==================
+-- ================== АТАКА МОБА ==================
 local function attackMob(mob)
     if not mob or not character then return end
-    local humanoid = mob:FindFirstChildOfClass("Humanoid")
-    if not humanoid or humanoid.Health <= 0 then return end
+    local mobHumanoid = mob:FindFirstChildOfClass("Humanoid")
+    if not mobHumanoid or mobHumanoid.Health <= 0 then return end
 
-    -- Подходим к мобу (телепорт)
+    -- Телепортируемся рядом с мобом
     local mobHRP = mob:FindFirstChild("HumanoidRootPart") or mob:FindFirstChild("Head")
     if mobHRP then
         teleportTo(mobHRP.Position + Vector3.new(0, 0, -5))
         task.wait(0.5)
-        -- Выполняем атаку (например, клик или вызов RemoteEvent)
-        -- В большинстве скриптов используется: game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Combat"):FireServer(...)
-        -- Заглушка: просто кликаем по мобу
-        -- fireclickdetector(mob:FindFirstChild("ClickDetector"))
-        -- Либо имитируем атаку через нажатие кнопки мыши
-        -- Здесь нужно адаптировать под игру
-        local args = {[1] = mob}
-        -- game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Damage"):FireServer(unpack(args))
-        task.wait(1)
+        -- Клик по мобу (атака)
+        clickModel(mob)
+        task.wait(0.8)
     end
 end
 
 -- ================== ПРОВЕРКА ЗДОРОВЬЯ ==================
 local function checkHealth()
     if humanoid.Health <= 30 then
-        -- Телепортируемся на безопасную позицию (например, на остров)
-        local currentQuest = getCurrentQuest(player.Data.Level.Value or 1)
-        teleportTo(currentQuest.pos)
-        task.wait(5) -- ждём восстановления
+        -- Находим безопасную точку (используем текущий остров)
+        local currentQuest = QUESTS[1] -- fallback
+        local level = player.Data and player.Data.Level and player.Data.Level.Value or 1
+        for _, quest in ipairs(QUESTS) do
+            if level >= quest.minLevel then
+                currentQuest = quest
+            end
+        end
+        teleportTo(currentQuest.islandPosition)
+        task.wait(5) -- ждём восстановления здоровья
     end
 end
 
 -- ================== ОСНОВНОЙ ЦИКЛ ==================
+local function getCurrentQuest(level)
+    local current = QUESTS[1]
+    for _, quest in ipairs(QUESTS) do
+        if level >= quest.minLevel then
+            current = quest
+        else
+            break
+        end
+    end
+    return current
+end
+
 local function autoFarmLoop()
     while autoFarmActive and player.Character do
-        local level = player.Data.Level.Value or 1 -- предполагаем, что уровень хранится в player.Data.Level
+        local level = player.Data and player.Data.Level and player.Data.Level.Value or 1
         local currentQuest = getCurrentQuest(level)
 
-        -- Телепортируемся на нужный остров, если далеко
-        if (rootPart.Position - currentQuest.pos).Magnitude > 100 then
-            teleportTo(currentQuest.pos)
+        -- Телепортируемся на остров, если далеко
+        if (rootPart.Position - currentQuest.islandPosition).Magnitude > 200 then
+            teleportTo(currentQuest.islandPosition)
             task.wait(2)
         end
 
         -- Получаем квест
-        takeQuest(currentQuest.questGiver)
+        if not takeQuest(currentQuest.questGiverName) then
+            task.wait(2)
+            continue
+        end
 
-        -- Ищем и убиваем мобов
-        local killedCount = 0
-        local mobName = currentQuest.mobName
-        local requiredCount = currentQuest.mobCount
-
-        while killedCount < requiredCount and autoFarmActive do
+        -- Убиваем необходимое количество мобов
+        local killed = 0
+        while killed < currentQuest.requiredKills and autoFarmActive do
             checkHealth()
-            local mob, dist = findNearestModel(mobName)
+
+            local mob, dist = findNearestModel(currentQuest.mobName)
             if mob then
                 attackMob(mob)
-                -- Проверяем, убит ли моб (здоровье 0)
+                -- Проверяем, умер ли моб
                 local mobHumanoid = mob:FindFirstChildOfClass("Humanoid")
                 if mobHumanoid and mobHumanoid.Health <= 0 then
-                    killedCount = killedCount + 1
+                    killed = killed + 1
                     task.wait(0.5)
                 end
             else
@@ -162,7 +207,7 @@ local function autoFarmLoop()
         end
 
         -- Сдаём квест
-        takeQuest(currentQuest.questGiver) -- повторное взаимодействие для сдачи
+        takeQuest(currentQuest.questGiverName)
         task.wait(2)
 
         print("Квест выполнен!")
@@ -170,9 +215,15 @@ local function autoFarmLoop()
 end
 
 -- ================== ЗАПУСК ==================
--- Убеждаемся, что персонаж загружен
-if not player.Character then
-    player.CharacterAdded:Wait()
+if player.Character then
+    autoFarmActive = true
+    task.spawn(autoFarmLoop)
+else
+    player.CharacterAdded:Connect(function()
+        character = player.Character
+        humanoid = character:WaitForChild("Humanoid")
+        rootPart = character:WaitForChild("HumanoidRootPart")
+        autoFarmActive = true
+        task.spawn(autoFarmLoop)
+    end)
 end
-autoFarmActive = true
-autoFarmLoop()
