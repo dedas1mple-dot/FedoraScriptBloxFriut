@@ -1,1 +1,21 @@
 
+-- general.lua
+local RightCol = _G.GeneralRightCol
+
+local InfoSec = _G.CreateSection(RightCol, "Information", 160)
+_G.CreateLabel(InfoSec, "Hello User, welcome to the Script menu.")
+
+local DiscordButton = _G.CreateButton(InfoSec, "Join Discord Server")
+DiscordButton.MouseButton1Click:Connect(function()
+    setclipboard("https://discord.gg/dFkbJAwmKY")
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Discord",
+        Text = "Link copied to clipboard!",
+        Duration = 5
+    })
+end)
+
+local UnloadButton = _G.CreateButton(InfoSec, "Unload")
+UnloadButton.MouseButton1Click:Connect(function()
+    _G.UnloadMenu()
+end)
