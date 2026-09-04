@@ -1,4 +1,4 @@
--- AutoFarm.lua (исправлено: без глобальных кликов, с RemoteEvents)
+-- AutoFarm.lua (исправлена атака)
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
@@ -7,6 +7,7 @@ local rootPart = character:WaitForChild("HumanoidRootPart")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local VirtualUser = game:GetService("VirtualUser")
 
 -- ================== ФЛАГ РАБОТЫ ==================
 local autoFarmActive = true
@@ -63,26 +64,25 @@ local function findNearestModel(name, parent)
     return nearest, minDistance
 end
 
--- ================== БЕЗОПАСНОЕ ВЗАИМОДЕЙСТВИЕ ==================
+-- ================== ВЗАИМОДЕЙСТВИЕ БЕЗ СВОРАЧИВАНИЯ ==================
 local function interactWithModel(model)
     if not model then return false end
 
-    -- 1. Пробуем ClickDetector
+    -- 1. ClickDetector
     local clickDetector = model:FindFirstChildOfClass("ClickDetector")
     if clickDetector then
         fireclickdetector(clickDetector)
         return true
     end
 
-    -- 2. Пробуем ProximityPrompt
+    -- 2. ProximityPrompt
     local prompt = model:FindFirstChildOfClass("ProximityPrompt")
     if prompt then
         fireproximityprompt(prompt)
         return true
     end
 
-    -- 3. Отправляем RemoteEvent (нужно найти в игре)
-    -- Ищем RemoteEvent в ReplicatedStorage, который отвечает за диалог/квест
+    -- 3. RemoteEvent для диалога
     local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
     if remotes then
         local dialogEvent = remotes:FindFirstChild("Dialog") or remotes:FindFirstChild("Talk") or remotes:FindFirstChild("Quest")
@@ -98,12 +98,10 @@ end
 -- ================== ВЫБОР КВЕСТА В GUI ==================
 local function selectQuestInGui()
     local playerGui = player:WaitForChild("PlayerGui")
-    local buttons = playerGui:GetDescendants()
-    for _, obj in ipairs(buttons) do
+    for _, obj in ipairs(playerGui:GetDescendants()) do
         if obj:IsA("TextButton") then
             local text = string.lower(obj.Text)
             if text:find("accept") or text:find("ok") or text:find("да") or text:find("принять") then
-                -- Нажимаем кнопку через событие
                 obj.MouseButton1Click:Fire()
                 task.wait(0.5)
                 return true
@@ -115,10 +113,9 @@ end
 
 -- ================== ПОЛУЧЕНИЕ КВЕСТА ==================
 local function takeQuest(quest)
-    -- Перемещаемся к NPC
     if quest.questGiverCFrame then
         smoothMoveTo(quest.questGiverCFrame, 200)
-        task.wait(1) -- ждём прогрузки
+        task.wait(1) -- ждём прогрузки NPC
     else
         local questGiver = findNearestModel(quest.questGiverName)
         if questGiver then
@@ -130,11 +127,10 @@ local function takeQuest(quest)
         end
     end
 
-    -- Находим NPC и взаимодействуем
     local questGiver = findNearestModel(quest.questGiverName)
     if questGiver and interactWithModel(questGiver) then
         task.wait(1)
-        selectQuestInGui() -- пытаемся нажать Accept
+        selectQuestInGui()
         task.wait(1)
         return true
     end
@@ -148,24 +144,33 @@ local function attackMob(mob)
     if not mobHumanoid or mobHumanoid.Health <= 0 then return end
 
     local mobHRP = mob:FindFirstChild("HumanoidRootPart") or mob:FindFirstChild("Head")
-    if mobHRP then
-        smoothMoveTo(CFrame.new(mobHRP.Position + Vector3.new(0, 0, -3)), 250)
-        task.wait(0.3)
-        -- Используем interactWithModel (если есть ClickDetector, сработает)
-        -- Если нет, пробуем отправить RemoteEvent для атаки
-        local success = interactWithModel(mob)
-        if not success then
-            -- Ищем RemoteEvent для атаки
-            local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
-            if remotes then
-                local attackEvent = remotes:FindFirstChild("Attack") or remotes:FindFirstChild("Damage") or remotes:FindFirstChild("Combat")
-                if attackEvent then
-                    attackEvent:FireServer(mob)
-                end
-            end
-        end
-        task.wait(0.5)
+    if not mobHRP then return end
+
+    -- Подлетаем ближе и поворачиваемся к мобу
+    local targetPos = mobHRP.Position + Vector3.new(0, 0, -3)
+    smoothMoveTo(CFrame.lookAt(targetPos, mobHRP.Position), 250)
+    task.wait(0.3)
+
+    -- 1. Пробуем ClickDetector
+    if interactWithModel(mob) then
+        return
     end
+
+    -- 2. Пробуем RemoteEvent для атаки
+    local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
+    if remotes then
+        local attackEvent = remotes:FindFirstChild("Attack") or remotes:FindFirstChild("Damage") or remotes:FindFirstChild("Combat")
+        if attackEvent then
+            attackEvent:FireServer(mob)
+            return
+        end
+    end
+
+    -- 3. Безопасный клик мышью (не сворачивает экран)
+    VirtualUser:ClickButton1Down(Vector2.new(0,0))
+    task.wait(0.1)
+    VirtualUser:ClickButton1Up(Vector2.new(0,0))
+    task.wait(0.2)
 end
 
 -- ================== ПРОВЕРКА ЗДОРОВЬЯ ==================
@@ -178,7 +183,6 @@ local function checkHealth()
                 currentQuest = quest
             end
         end
-        -- Летим к квестодателю (безопасное место)
         if currentQuest.questGiverCFrame then
             smoothMoveTo(currentQuest.questGiverCFrame, 200)
         end
@@ -208,13 +212,11 @@ local function autoFarmLoop()
         local level = player.Data and player.Data.Level and player.Data.Level.Value or 1
         local currentQuest = getCurrentQuest(level)
 
-        -- Берём квест
         if not takeQuest(currentQuest) then
             task.wait(5)
             continue
         end
 
-        -- Убиваем мобов
         local killed = 0
         while killed < currentQuest.requiredKills and autoFarmActive do
             checkHealth()
@@ -233,8 +235,7 @@ local function autoFarmLoop()
             task.wait(1)
         end
 
-        -- Сдаём квест
-        takeQuest(currentQuest)
+        takeQuest(currentQuest) -- сдача квеста
         task.wait(2)
 
         print("Квест выполнен!")
