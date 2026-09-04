@@ -1,4 +1,3 @@
-
 -- menu.lua
 local player = game.Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -80,30 +79,227 @@ ContentArea.BackgroundTransparency = 1
 ContentArea.ClipsDescendants = true
 ContentArea.Parent = MainFrame
 
--- Страницы (пустые контейнеры для каждой вкладки)
-local PageGeneral = Instance.new("Frame")
-PageGeneral.Size = UDim2.new(1, 0, 1, 0)
-PageGeneral.Position = UDim2.new(0, 0, 0, 0)
-PageGeneral.BackgroundTransparency = 1
-PageGeneral.Parent = ContentArea
+-- =================== СОЗДАНИЕ СТРАНИЦ ===================
+local function createPage()
+    local page = Instance.new("Frame")
+    page.Size = UDim2.new(1, 0, 1, 0)
+    page.Position = UDim2.new(0, 0, 1, 0) -- скрыта по умолчанию
+    page.BackgroundTransparency = 1
+    page.Parent = ContentArea
+    return page
+end
 
-local PagePvP = Instance.new("Frame")
-PagePvP.Size = UDim2.new(1, 0, 1, 0)
-PagePvP.Position = UDim2.new(0, 0, 1, 0) -- скрыта
-PagePvP.BackgroundTransparency = 1
-PagePvP.Parent = ContentArea
+local GeneralPage = createPage()
+local PvPPage = createPage()
+local VisualsPage = createPage()
+local InfoPage = createPage()
 
-local PageVisuals = Instance.new("Frame")
-PageVisuals.Size = UDim2.new(1, 0, 1, 0)
-PageVisuals.Position = UDim2.new(0, 0, 1, 0)
-PageVisuals.BackgroundTransparency = 1
-PageVisuals.Parent = ContentArea
+-- Для каждой страницы создаём ScrollingFrame и внутренний контейнер (для модулей)
+local function createScrollContainer(page)
+    local scrolling = Instance.new("ScrollingFrame")
+    scrolling.Size = UDim2.new(1, 0, 1, 0)
+    scrolling.BackgroundTransparency = 1
+    scrolling.ScrollBarThickness = 2
+    scrolling.CanvasSize = UDim2.new(0, 0, 0, 650)
+    scrolling.Parent = page
 
-local PageInfo = Instance.new("Frame")
-PageInfo.Size = UDim2.new(1, 0, 1, 0)
-PageInfo.Position = UDim2.new(0, 0, 1, 0)
-PageInfo.BackgroundTransparency = 1
-PageInfo.Parent = ContentArea
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, -20, 1, 0)
+    container.Position = UDim2.new(0, 10, 0, 10)
+    container.BackgroundTransparency = 1
+    container.Parent = scrolling
+
+    local layout = Instance.new("UIListLayout")
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Padding = UDim.new(0, 10)
+    layout.Parent = container
+
+    return scrolling, container
+end
+
+local GeneralScrolling, GeneralContainer = createScrollContainer(GeneralPage)
+local PvPScrolling, PvPContainer = createScrollContainer(PvPPage)
+local VisualsScrolling, VisualsContainer = createScrollContainer(VisualsPage)
+local InfoScrolling, InfoContainer = createScrollContainer(InfoPage)
+
+-- Для General создаём две колонки (как в оригинале)
+local GeneralLeftCol = Instance.new("Frame")
+GeneralLeftCol.Size = UDim2.new(0.5, -15, 1, 0)
+GeneralLeftCol.Position = UDim2.new(0, 10, 0, 10)
+GeneralLeftCol.BackgroundTransparency = 1
+GeneralLeftCol.Parent = GeneralScrolling
+local LeftLayout = Instance.new("UIListLayout")
+LeftLayout.SortOrder = Enum.SortOrder.LayoutOrder
+LeftLayout.Padding = UDim.new(0, 10)
+LeftLayout.Parent = GeneralLeftCol
+
+local GeneralRightCol = Instance.new("Frame")
+GeneralRightCol.Size = UDim2.new(0.5, -15, 1, 0)
+GeneralRightCol.Position = UDim2.new(0.5, 5, 0, 10)
+GeneralRightCol.BackgroundTransparency = 1
+GeneralRightCol.Parent = GeneralScrolling
+local RightLayout = Instance.new("UIListLayout")
+RightLayout.SortOrder = Enum.SortOrder.LayoutOrder
+RightLayout.Padding = UDim.new(0, 10)
+RightLayout.Parent = GeneralRightCol
+
+-- Сохраняем ссылки в глобальные переменные для модулей
+_G.GeneralScrolling = GeneralScrolling
+_G.GeneralLeftCol = GeneralLeftCol
+_G.GeneralRightCol = GeneralRightCol
+_G.PvPScrolling = PvPScrolling
+_G.PvPContainer = PvPContainer
+_G.VisualsScrolling = VisualsScrolling
+_G.VisualsContainer = VisualsContainer
+_G.InfoScrolling = InfoScrolling
+_G.InfoContainer = InfoContainer
+
+-- =================== ФУНКЦИИ СОЗДАНИЯ UI ===================
+local function CreateSection(parent, titleText, height)
+    local Section = Instance.new("Frame")
+    Section.Size = UDim2.new(1, 0, 0, height)
+    Section.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    Section.BorderSizePixel = 1
+    Section.BorderColor3 = Color3.fromRGB(45, 45, 45)
+    Section.Parent = parent
+
+    local SecCorner = Instance.new("UICorner")
+    SecCorner.CornerRadius = UDim.new(0, 6)
+    SecCorner.Parent = Section
+
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1, -10, 0, 30)
+    Title.Position = UDim2.new(0, 10, 0, 0)
+    Title.BackgroundTransparency = 1
+    Title.Text = titleText
+    Title.TextColor3 = Color3.fromRGB(200, 200, 200)
+    Title.Font = Enum.Font.GothamBold
+    Title.TextSize = 13
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.Parent = Section
+
+    local Line = Instance.new("Frame")
+    Line.Size = UDim2.new(1, 0, 0, 1)
+    Line.Position = UDim2.new(0, 0, 0, 30)
+    Line.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    Line.BorderSizePixel = 0
+    Line.Parent = Section
+
+    local Container = Instance.new("Frame")
+    Container.Size = UDim2.new(1, -20, 1, -40)
+    Container.Position = UDim2.new(0, 10, 0, 35)
+    Container.BackgroundTransparency = 1
+    Container.Parent = Section
+
+    local Layout = Instance.new("UIListLayout")
+    Layout.SortOrder = Enum.SortOrder.LayoutOrder
+    Layout.Padding = UDim.new(0, 8)
+    Layout.Parent = Container
+
+    return Container
+end
+
+local function CreateToggle(parent, text, defaultState)
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(1, 0, 0, 25)
+    Frame.BackgroundTransparency = 1
+    Frame.Parent = parent
+
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, -40, 1, 0)
+    Label.BackgroundTransparency = 1
+    Label.Text = text
+    Label.TextColor3 = Color3.fromRGB(180, 180, 180)
+    Label.Font = Enum.Font.Gotham
+    Label.TextSize = 13
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Parent = Frame
+
+    local ToggleBG = Instance.new("TextButton")
+    ToggleBG.Size = UDim2.new(0, 36, 0, 18)
+    ToggleBG.Position = UDim2.new(1, -36, 0.5, -9)
+    ToggleBG.BackgroundColor3 = defaultState and Color3.fromRGB(255, 75, 100) or Color3.fromRGB(50, 50, 50)
+    ToggleBG.Text = ""
+    ToggleBG.Parent = Frame
+    local TCorner = Instance.new("UICorner")
+    TCorner.CornerRadius = UDim.new(1, 0)
+    TCorner.Parent = ToggleBG
+
+    local Circle = Instance.new("Frame")
+    Circle.Size = UDim2.new(0, 14, 0, 14)
+    Circle.Position = defaultState and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+    Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    Circle.Parent = ToggleBG
+    local CCorner = Instance.new("UICorner")
+    CCorner.CornerRadius = UDim.new(1, 0)
+    CCorner.Parent = Circle
+
+    local state = defaultState
+    ToggleBG.MouseButton1Click:Connect(function()
+        state = not state
+        local bgColor = state and Color3.fromRGB(255, 75, 100) or Color3.fromRGB(50, 50, 50)
+        local circlePos = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+        game:GetService("TweenService"):Create(ToggleBG, TweenInfo.new(0.2), {BackgroundColor3 = bgColor}):Play()
+        game:GetService("TweenService"):Create(Circle, TweenInfo.new(0.2), {Position = circlePos}):Play()
+    end)
+
+    return ToggleBG, function() return state end
+end
+
+local function CreateButton(parent, text)
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(1, 0, 0, 28)
+    Btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    Btn.Text = text
+    Btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    Btn.Font = Enum.Font.Gotham
+    Btn.TextSize = 13
+    Btn.Parent = parent
+
+    local Stroke = Instance.new("UIStroke")
+    Stroke.Color = Color3.fromRGB(60, 60, 60)
+    Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    Stroke.Parent = Btn
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 4)
+    Corner.Parent = Btn
+
+    Btn.MouseEnter:Connect(function()
+        game:GetService("TweenService"):Create(Btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}):Play()
+    end)
+    Btn.MouseLeave:Connect(function()
+        game:GetService("TweenService"):Create(Btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40, 40, 40)}):Play()
+    end)
+    Btn.MouseButton1Down:Connect(function()
+        game:GetService("TweenService"):Create(Btn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+    end)
+    Btn.MouseButton1Up:Connect(function()
+        game:GetService("TweenService"):Create(Btn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}):Play()
+    end)
+
+    return Btn
+end
+
+local function CreateLabel(parent, text)
+    local Lbl = Instance.new("TextLabel")
+    Lbl.Size = UDim2.new(1, 0, 0, 35)
+    Lbl.BackgroundTransparency = 1
+    Lbl.Text = text
+    Lbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+    Lbl.Font = Enum.Font.Gotham
+    Lbl.TextSize = 12
+    Lbl.TextWrapped = true
+    Lbl.TextXAlignment = Enum.TextXAlignment.Left
+    Lbl.Parent = parent
+    return Lbl
+end
+
+-- Сохраняем функции в глобальные для модулей
+_G.CreateSection = CreateSection
+_G.CreateToggle = CreateToggle
+_G.CreateButton = CreateButton
+_G.CreateLabel = CreateLabel
 
 -- =================== ВКЛАДКИ (КНОПКИ) ===================
 local function createTabButton(name, iconId, position)
@@ -145,7 +341,7 @@ local TabPvP, TabPvPText, TabPvPIcon = createTabButton("PvP", "rbxassetid://4391
 local TabVisuals, TabVisualsText, TabVisualsIcon = createTabButton("Visuals", "rbxassetid://113542807465335", 150)
 local TabInfo, TabInfoText, TabInfoIcon = createTabButton("Info", "rbxassetid://4871684504", 195)
 
--- Устанавливаем первую вкладку активной
+-- Активируем первую вкладку
 TabGeneral.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 TabGeneralText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TabGeneralIcon.ImageTransparency = 0
@@ -155,10 +351,10 @@ local currentTab = "General"
 local isAnimating = false
 
 local pages = {
-    General = PageGeneral,
-    PvP = PagePvP,
-    Visuals = PageVisuals,
-    Info = PageInfo
+    General = GeneralPage,
+    PvP = PvPPage,
+    Visuals = VisualsPage,
+    Info = InfoPage
 }
 
 local buttons = {
@@ -168,7 +364,31 @@ local buttons = {
     Info = {btn = TabInfo, text = TabInfoText, icon = TabInfoIcon}
 }
 
-local loadedModules = {} -- запоминаем, какие модули уже загружены
+local loadedModules = {}
+
+local function loadModule(moduleName)
+    local moduleUrls = {
+        General = "https://raw.githubusercontent.com/your_username/BloxFruit-Script/main/general.lua",
+        PvP = "https://raw.githubusercontent.com/your_username/BloxFruit-Script/main/pvp.lua",
+        Visuals = "https://raw.githubusercontent.com/your_username/BloxFruit-Script/main/visuals.lua",
+        Info = "https://raw.githubusercontent.com/your_username/BloxFruit-Script/main/info.lua"
+    }
+    local url = moduleUrls[moduleName]
+    if not url then return end
+
+    local success, err = pcall(function()
+        loadstring(game:HttpGet(url))()
+    end)
+
+    if not success then
+        warn("Ошибка загрузки модуля " .. moduleName .. ": " .. tostring(err))
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Ошибка",
+            Text = "Не удалось загрузить " .. moduleName,
+            Duration = 5
+        })
+    end
+end
 
 local function switchTab(tabName)
     if isAnimating or currentTab == tabName then return end
@@ -211,42 +431,28 @@ TabPvP.MouseButton1Click:Connect(function() switchTab("PvP") end)
 TabVisuals.MouseButton1Click:Connect(function() switchTab("Visuals") end)
 TabInfo.MouseButton1Click:Connect(function() switchTab("Info") end)
 
--- =================== ЗАГРУЗКА МОДУЛЕЙ ===================
-local moduleUrls = {
-    General = "https://raw.githubusercontent.com/your_username/BloxFruit-Script/main/general.lua",
-    PvP = "https://raw.githubusercontent.com/your_username/BloxFruit-Script/main/pvp.lua",
-    Visuals = "https://raw.githubusercontent.com/your_username/BloxFruit-Script/main/visuals.lua",
-    Info = "https://raw.githubusercontent.com/your_username/BloxFruit-Script/main/info.lua"
-}
-
-function loadModule(moduleName)
-    local url = moduleUrls[moduleName]
-    if not url then return end
-
-    local success, err = pcall(function()
-        loadstring(game:HttpGet(url))()
+-- =================== ФУНКЦИЯ ВЫГРУЗКИ ===================
+function _G.UnloadMenu()
+    -- Анимация и удаление GUI
+    local currentPos = MainFrame.Position
+    local targetPos = UDim2.new(currentPos.X.Scale, currentPos.X.Offset, 1, MainFrame.Size.Y.Offset / 2)
+    local unloadAnimation = game:GetService("TweenService"):Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = targetPos})
+    unloadAnimation:Play()
+    unloadAnimation.Completed:Connect(function()
+        ScreenGui:Destroy()
     end)
-
-    if not success then
-        warn("Ошибка загрузки модуля " .. moduleName .. ": " .. tostring(err))
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Ошибка",
-            Text = "Не удалось загрузить " .. moduleName,
-            Duration = 5
-        })
-    end
 end
 
--- Загружаем General сразу, так как он открыт по умолчанию
-loadModule("General")
-loadedModules.General = true
-
--- =================== ОБРАБОТКА ВЫГРУЗКИ ===================
+-- =================== ОБРАБОТКА УДАЛЕНИЯ GUI ===================
 playerGui.ChildRemoved:Connect(function(child)
     if child.Name == "TheDarkScriptGUI" then
-        -- Вызываем глобальную функцию очистки, если она существует (например, для ESP)
+        -- Вызываем глобальную очистку, если она определена (например, для ESP)
         if _G.cleanupAll then
             _G.cleanupAll()
         end
     end
 end)
+
+-- Загружаем General сразу, так как он открыт по умолчанию
+loadModule("General")
+loadedModules.General = true
