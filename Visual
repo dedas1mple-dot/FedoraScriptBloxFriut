@@ -1,126 +1,7 @@
-
 -- visuals.lua
-local player = game.Players.LocalPlayer
+local VisualsContainer = _G.VisualsContainer
 
--- Убеждаемся, что страница Visuals существует (передаётся из menu.lua)
-local VisualsPage = _G.VisualsPage -- menu.lua должен сохранить страницу в глобальную переменную
-if not VisualsPage then return end
-
--- Создаём контейнер и прокрутку
-local VisualsScrolling = Instance.new("ScrollingFrame")
-VisualsScrolling.Size = UDim2.new(1, 0, 1, 0)
-VisualsScrolling.BackgroundTransparency = 1
-VisualsScrolling.ScrollBarThickness = 2
-VisualsScrolling.CanvasSize = UDim2.new(0, 0, 0, 650)
-VisualsScrolling.Parent = VisualsPage
-
-local VisualsCol = Instance.new("Frame")
-VisualsCol.Size = UDim2.new(1, -20, 1, 0)
-VisualsCol.Position = UDim2.new(0, 10, 0, 10)
-VisualsCol.BackgroundTransparency = 1
-VisualsCol.Parent = VisualsScrolling
-local VisualsLayout = Instance.new("UIListLayout")
-VisualsLayout.SortOrder = Enum.SortOrder.LayoutOrder
-VisualsLayout.Padding = UDim.new(0, 10)
-VisualsLayout.Parent = VisualsCol
-
--- Вспомогательные функции для создания UI (можно вынести в отдельный модуль, но для простоты оставим здесь)
-local function CreateSection(parent, titleText, height)
-    local Section = Instance.new("Frame")
-    Section.Size = UDim2.new(1, 0, 0, height)
-    Section.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    Section.BorderSizePixel = 1
-    Section.BorderColor3 = Color3.fromRGB(45, 45, 45)
-    Section.Parent = parent
-
-    local SecCorner = Instance.new("UICorner")
-    SecCorner.CornerRadius = UDim.new(0, 6)
-    SecCorner.Parent = Section
-
-    local Title = Instance.new("TextLabel")
-    Title.Size = UDim2.new(1, -10, 0, 30)
-    Title.Position = UDim2.new(0, 10, 0, 0)
-    Title.BackgroundTransparency = 1
-    Title.Text = titleText
-    Title.TextColor3 = Color3.fromRGB(200, 200, 200)
-    Title.Font = Enum.Font.GothamBold
-    Title.TextSize = 13
-    Title.TextXAlignment = Enum.TextXAlignment.Left
-    Title.Parent = Section
-
-    local Line = Instance.new("Frame")
-    Line.Size = UDim2.new(1, 0, 0, 1)
-    Line.Position = UDim2.new(0, 0, 0, 30)
-    Line.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    Line.BorderSizePixel = 0
-    Line.Parent = Section
-
-    local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(1, -20, 1, -40)
-    Container.Position = UDim2.new(0, 10, 0, 35)
-    Container.BackgroundTransparency = 1
-    Container.Parent = Section
-
-    local Layout = Instance.new("UIListLayout")
-    Layout.SortOrder = Enum.SortOrder.LayoutOrder
-    Layout.Padding = UDim.new(0, 8)
-    Layout.Parent = Container
-
-    return Container
-end
-
-local function CreateToggle(parent, text, defaultState)
-    local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(1, 0, 0, 25)
-    Frame.BackgroundTransparency = 1
-    Frame.Parent = parent
-
-    local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(1, -40, 1, 0)
-    Label.BackgroundTransparency = 1
-    Label.Text = text
-    Label.TextColor3 = Color3.fromRGB(180, 180, 180)
-    Label.Font = Enum.Font.Gotham
-    Label.TextSize = 13
-    Label.TextXAlignment = Enum.TextXAlignment.Left
-    Label.Parent = Frame
-
-    local ToggleBG = Instance.new("TextButton")
-    ToggleBG.Size = UDim2.new(0, 36, 0, 18)
-    ToggleBG.Position = UDim2.new(1, -36, 0.5, -9)
-    ToggleBG.BackgroundColor3 = defaultState and Color3.fromRGB(255, 75, 100) or Color3.fromRGB(50, 50, 50)
-    ToggleBG.Text = ""
-    ToggleBG.Parent = Frame
-    local TCorner = Instance.new("UICorner")
-    TCorner.CornerRadius = UDim.new(1, 0)
-    TCorner.Parent = ToggleBG
-
-    local Circle = Instance.new("Frame")
-    Circle.Size = UDim2.new(0, 14, 0, 14)
-    Circle.Position = defaultState and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
-    Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    Circle.Parent = ToggleBG
-    local CCorner = Instance.new("UICorner")
-    CCorner.CornerRadius = UDim.new(1, 0)
-    CCorner.Parent = Circle
-
-    local state = defaultState
-    ToggleBG.MouseButton1Click:Connect(function()
-        state = not state
-        local bgColor = state and Color3.fromRGB(255, 75, 100) or Color3.fromRGB(50, 50, 50)
-        local circlePos = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
-        game:GetService("TweenService"):Create(ToggleBG, TweenInfo.new(0.2), {BackgroundColor3 = bgColor}):Play()
-        game:GetService("TweenService"):Create(Circle, TweenInfo.new(0.2), {Position = circlePos}):Play()
-    end)
-
-    return ToggleBG, function() return state end
-end
-
--- ESP секция
-local ESPSection = CreateSection(VisualsCol, "ESP", 90)
-local ESPToggle, getESPState = CreateToggle(ESPSection, "ESP Enabled", false)
-
--- Настройки ESP (можно вынести в конфиг)
+-- Настройки ESP
 local ESP_CONFIG = {
     FillColor = Color3.fromRGB(255, 75, 100),
     FillTransparency = 0.5,
@@ -129,29 +10,99 @@ local ESP_CONFIG = {
     DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 }
 
--- Переменные состояния
 local espActive = false
 local playerConnections = {}
 local npcHighlights = {}
 local npcScanThread = nil
 
--- Функции ESP (как в предыдущих версиях, но с глобальным управлением)
+-- ============ ФУНКЦИИ ДЛЯ ИГРОКОВ ============
 local function addESPToPlayer(targetPlayer)
-    -- ... (реализация как раньше)
+    if targetPlayer == game.Players.LocalPlayer then return end
+
+    local function onCharacterAdded(character)
+        local humanoid = character:WaitForChild("Humanoid", 5)
+        if not humanoid then return end
+
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "ESPHighlight_Player"
+        highlight.FillColor = ESP_CONFIG.FillColor
+        highlight.FillTransparency = ESP_CONFIG.FillTransparency
+        highlight.OutlineColor = ESP_CONFIG.OutlineColor
+        highlight.OutlineTransparency = ESP_CONFIG.OutlineTransparency
+        highlight.DepthMode = ESP_CONFIG.DepthMode
+        highlight.Parent = character
+    end
+
+    local function onCharacterRemoving(character)
+        local hl = character:FindFirstChild("ESPHighlight_Player")
+        if hl then hl:Destroy() end
+    end
+
+    if targetPlayer.Character then
+        onCharacterAdded(targetPlayer.Character)
+    end
+
+    table.insert(playerConnections, targetPlayer.CharacterAdded:Connect(onCharacterAdded))
+    table.insert(playerConnections, targetPlayer.CharacterRemoving:Connect(onCharacterRemoving))
 end
 
 local function clearPlayerESP()
-    -- ...
+    for _, plr in pairs(game.Players:GetPlayers()) do
+        if plr.Character and plr.Character:FindFirstChild("ESPHighlight_Player") then
+            plr.Character.ESPHighlight_Player:Destroy()
+        end
+    end
+    for _, conn in pairs(playerConnections) do
+        conn:Disconnect()
+    end
+    playerConnections = {}
 end
 
+-- ============ ФУНКЦИИ ДЛЯ NPC ============
 local function scanForNPCs()
-    -- ...
+    local npcModels = {}
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") then
+            local plr = game.Players:GetPlayerFromCharacter(obj)
+            if not plr then
+                npcModels[obj] = true
+            end
+        end
+    end
+
+    for model in pairs(npcModels) do
+        if not npcHighlights[model] then
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "ESPHighlight_NPC"
+            highlight.FillColor = ESP_CONFIG.FillColor
+            highlight.FillTransparency = ESP_CONFIG.FillTransparency
+            highlight.OutlineColor = ESP_CONFIG.OutlineColor
+            highlight.OutlineTransparency = ESP_CONFIG.OutlineTransparency
+            highlight.DepthMode = ESP_CONFIG.DepthMode
+            highlight.Parent = model
+            npcHighlights[model] = highlight
+        end
+    end
+
+    for model, hl in pairs(npcHighlights) do
+        if not npcModels[model] then
+            hl:Destroy()
+            npcHighlights[model] = nil
+        end
+    end
 end
 
 local function clearNPCESP()
-    -- ...
+    if npcScanThread then
+        npcScanThread = nil
+    end
+    for model, hl in pairs(npcHighlights) do
+        hl:Destroy()
+    end
+    npcHighlights = {}
 end
 
+-- ============ ГЛОБАЛЬНЫЕ ФУНКЦИИ УПРАВЛЕНИЯ ============
 function _G.enableESP()
     if espActive then return end
     espActive = true
@@ -184,7 +135,14 @@ function _G.disableESP()
     clearNPCESP()
 end
 
--- Привязка тумблера
+function _G.cleanupESP()
+    _G.disableESP()
+end
+
+-- ==== СОЗДАНИЕ UI ДЛЯ ESP ====
+local ESPSection = _G.CreateSection(VisualsContainer, "ESP", 90)
+local ESPToggle, getESPState = _G.CreateToggle(ESPSection, "ESP Enabled", false)
+
 ESPToggle.MouseButton1Click:Connect(function()
     task.wait(0.1)
     if getESPState() then
@@ -194,7 +152,5 @@ ESPToggle.MouseButton1Click:Connect(function()
     end
 end)
 
--- Функция очистки, вызываемая из menu.lua при выгрузке
-function _G.cleanupESP()
-    _G.disableESP()
-end
+-- Устанавливаем глобальную очистку (используется menu.lua при удалении GUI)
+_G.cleanupAll = _G.cleanupESP
