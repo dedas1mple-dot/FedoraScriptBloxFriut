@@ -1,4 +1,4 @@
--- AutoFarm.lua (исправлен поиск кнопки подтверждения квеста)
+-- AutoFarm.lua (полностью без глобальных кликов)
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
@@ -7,7 +7,6 @@ local rootPart = character:WaitForChild("HumanoidRootPart")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local VirtualInputManager = game:GetService("VirtualInputManager")
-local VirtualUser = game:GetService("VirtualUser")
 
 -- ================== ФЛАГ РАБОТЫ ==================
 local autoFarmActive = true
@@ -23,6 +22,8 @@ local QUESTS = {
         questGiverCFrame = CFrame.new(1058.99231, 16.1369934, 1551.73328, 0.999752104, -0, -0.0222652908, 0, 1, -0, 0.0222652908, 0, 0.999752104),
         mobName = "Bandit",
         requiredKills = 5,
+        -- Номер опции в диалоге (считая с 1), которая соответствует этому квесту
+        dialogOptionIndex = 1,
     },
     -- Добавьте следующие квесты, когда будут координаты
 }
@@ -64,19 +65,7 @@ local function findNearestModel(name, parent)
     return nearest, minDistance
 end
 
--- ================== ВЗАИМОДЕЙСТВИЕ (КЛИК ПО ЭКРАНУ) ==================
-local function clickOnScreenPosition(position)
-    local camera = workspace.CurrentCamera
-    local screenPos, onScreen = camera:WorldToScreenPoint(position)
-    if not onScreen then return false end
-
-    mousemoveabs(screenPos.X, screenPos.Y)
-    task.wait(0.1)
-    mouse1click()
-    task.wait(0.2)
-    return true
-end
-
+-- ================== ВЗАИМОДЕЙСТВИЕ БЕЗ ГЛОБАЛЬНЫХ КЛИКОВ ==================
 local function interactWithModel(model)
     if not model then return false end
 
@@ -87,71 +76,44 @@ local function interactWithModel(model)
         return true
     end
 
-    -- 2. ProximityPrompt
+    -- 2. ProximityPrompt (основной способ)
     local prompt = model:FindFirstChildOfClass("ProximityPrompt")
     if prompt then
         fireproximityprompt(prompt)
         return true
     end
 
-    -- 3. Клик по экрану по позиции NPC
-    local hrp = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Head")
-    if hrp then
-        return clickOnScreenPosition(hrp.Position)
+    -- 3. RemoteEvent (если найдёте)
+    local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
+    if remotes then
+        local dialogEvent = remotes:FindFirstChild("Dialog") or remotes:FindFirstChild("Talk") or remotes:FindFirstChild("Quest")
+        if dialogEvent then
+            dialogEvent:FireServer(model)
+            return true
+        end
     end
 
     return false
 end
 
--- ================== ВЫБОР КВЕСТА В GUI (УЛУЧШЕННЫЙ) ==================
-local function selectQuestInGui()
+-- ================== ВЫБОР ОПЦИИ В ДИАЛОГЕ ==================
+local function selectDialogOption(optionIndex)
     local playerGui = player:WaitForChild("PlayerGui")
-    local possibleButtons = {}
-
-    -- Собираем все кнопки (TextButton, ImageButton)
-    for _, obj in ipairs(playerGui:GetDescendants()) do
-        if obj:IsA("TextButton") or obj:IsA("ImageButton") then
-            table.insert(possibleButtons, obj)
-        end
+    local dialogueFrame = playerGui:FindFirstChild("Dialogue", true) -- поиск вглубь
+    if not dialogueFrame then
+        warn("Диалог не найден")
+        return false
     end
 
-    -- Попытка 1: найти по тексту
-    local keywords = {"accept", "confirm", "ok", "okay", "yes", "да", "принять", "start", "take", "claim"}
-    for _, btn in ipairs(possibleButtons) do
-        local text = btn.Text or ""
-        local lower = string.lower(text)
-        for _, kw in ipairs(keywords) do
-            if lower:find(kw) then
-                btn.MouseButton1Click:Fire()
-                task.wait(0.5)
-                return true
-            end
-        end
+    -- Ищем кнопку OptionN (например, Option1, Option2...)
+    local optionButton = dialogueFrame:FindFirstChild("Option" .. tostring(optionIndex))
+    if optionButton and (optionButton:IsA("TextButton") or optionButton:IsA("ImageButton")) then
+        optionButton.MouseButton1Click:Fire()
+        return true
+    else
+        warn("Кнопка Option" .. optionIndex .. " не найдена")
+        return false
     end
-
-    -- Попытка 2: найти кнопку по имени
-    for _, btn in ipairs(possibleButtons) do
-        local name = btn.Name or ""
-        local lower = string.lower(name)
-        for _, kw in ipairs(keywords) do
-            if lower:find(kw) then
-                btn.MouseButton1Click:Fire()
-                task.wait(0.5)
-                return true
-            end
-        end
-    end
-
-    -- Попытка 3: кликнуть по центру экрана (где обычно кнопка подтверждения)
-    local camera = workspace.CurrentCamera
-    local viewportSize = camera.ViewportSize
-    local centerX = viewportSize.X / 2
-    local centerY = viewportSize.Y * 0.55 -- чуть ниже центра
-    mousemoveabs(centerX, centerY)
-    task.wait(0.1)
-    mouse1click()
-    task.wait(0.5)
-    return true
 end
 
 -- ================== ПОЛУЧЕНИЕ КВЕСТА ==================
@@ -174,10 +136,13 @@ local function takeQuest(quest)
     -- Находим NPC и взаимодействуем
     local questGiver = findNearestModel(quest.questGiverName)
     if questGiver and interactWithModel(questGiver) then
-        task.wait(1) -- ждём открытия GUI
-        selectQuestInGui()
-        task.wait(1) -- ждём закрытия GUI
-        return true
+        task.wait(1) -- ждём открытия диалога
+
+        -- Выбираем нужную опцию (например, 1 = Bandit)
+        if selectDialogOption(quest.dialogOptionIndex or 1) then
+            task.wait(1) -- ждём подтверждения/закрытия диалога
+            return true
+        end
     end
     return false
 end
@@ -195,14 +160,9 @@ local function attackMob(mob)
     smoothMoveTo(CFrame.lookAt(mobHRP.Position + Vector3.new(0,0,-3), mobHRP.Position), 250)
     task.wait(0.3)
 
-    -- Пробуем взаимодействовать (клик по мобу)
-    if interactWithModel(mob) then
-        return
-    end
-
-    -- Запасной вариант: клик по экрану
-    clickOnScreenPosition(mobHRP.Position)
-    task.wait(0.2)
+    -- Атакуем (используем ClickDetector/ProximityPrompt моба)
+    interactWithModel(mob)
+    task.wait(0.5)
 end
 
 -- ================== ПРОВЕРКА ЗДОРОВЬЯ ==================
@@ -270,7 +230,7 @@ local function autoFarmLoop()
             task.wait(1)
         end
 
-        -- Сдаём квест
+        -- Сдаём квест (повторное взаимодействие с NPC и выбор опции)
         takeQuest(currentQuest)
         task.wait(2)
 
