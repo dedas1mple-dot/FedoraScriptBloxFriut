@@ -71,28 +71,33 @@ local function clearPlayerESP()
     playerConnections = {}
 end
 
+-- Вместо старого scanForNPCs вставьте этот код:
+
+-- Список папок, где могут находиться NPC (можно расширить)
+local NPC_FOLDERS = {"Enemies", "Bosses", "NPCs", "Mobs"}
+
+local function findNPCFolders()
+    local folders = {}
+    for _, folderName in ipairs(NPC_FOLDERS) do
+        local folder = workspace:FindFirstChild(folderName)
+        if folder then
+            table.insert(folders, folder)
+        end
+    end
+    return folders
+end
+
 local function scanForNPCs()
     local npcModels = {}
     local folders = findNPCFolders()
 
-    -- Если папки не найдены, сканируем весь Workspace (но это будет реже)
-    if #folders == 0 then
-        for _, obj in ipairs(workspace:GetDescendants()) do
+    -- Сканируем только найденные папки (никакого полного обхода Workspace)
+    for _, folder in ipairs(folders) do
+        for _, obj in ipairs(folder:GetDescendants()) do
             if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") then
                 local plr = game.Players:GetPlayerFromCharacter(obj)
                 if not plr then
                     npcModels[obj] = true
-                end
-            end
-        end
-    else
-        for _, folder in ipairs(folders) do
-            for _, obj in ipairs(folder:GetDescendants()) do
-                if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") then
-                    local plr = game.Players:GetPlayerFromCharacter(obj)
-                    if not plr then
-                        npcModels[obj] = true
-                    end
                 end
             end
         end
