@@ -1,9 +1,4 @@
--- ESP для Blox Fruit: подсветка игроков и NPC из workspace.Enemies
-local player = game.Players.LocalPlayer
-local espActive = false
-local playerConnections = {}
-local npcHighlights = {}  -- model -> highlight
-local npcScanThread = nil
+-- ================= НАСТРОЙКИ ESP =================
 local ESP_CONFIG = {
     FillColor = Color3.fromRGB(255, 75, 100),
     FillTransparency = 0.5,
@@ -12,12 +7,20 @@ local ESP_CONFIG = {
     DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 }
 
--- ===== Игроки =====
+local player = game.Players.LocalPlayer
+local espActive = false
+local playerConnections = {}
+local npcHighlights = {}  -- model -> highlight
+local npcScanThread = nil
+
+-- ================= ФУНКЦИИ ДЛЯ ИГРОКОВ =================
 local function addESPToPlayer(targetPlayer)
     if targetPlayer == player then return end
+
     local function onCharacterAdded(character)
         local humanoid = character:WaitForChild("Humanoid", 5)
         if not humanoid then return end
+
         local highlight = Instance.new("Highlight")
         highlight.Name = "ESPHighlight_Player"
         highlight.FillColor = ESP_CONFIG.FillColor
@@ -27,13 +30,16 @@ local function addESPToPlayer(targetPlayer)
         highlight.DepthMode = ESP_CONFIG.DepthMode
         highlight.Parent = character
     end
+
     local function onCharacterRemoving(character)
         local hl = character:FindFirstChild("ESPHighlight_Player")
         if hl then hl:Destroy() end
     end
+
     if targetPlayer.Character then
         onCharacterAdded(targetPlayer.Character)
     end
+
     table.insert(playerConnections, targetPlayer.CharacterAdded:Connect(onCharacterAdded))
     table.insert(playerConnections, targetPlayer.CharacterRemoving:Connect(onCharacterRemoving))
 end
@@ -50,23 +56,36 @@ local function clearPlayerESP()
     playerConnections = {}
 end
 
--- ===== NPC из workspace.Enemies =====
-local function scanForNPCs()
-    local enemiesFolder = workspace:FindFirstChild("Enemies")
-    if not enemiesFolder then
-        -- если папки нет, удаляем все старые подсветки NPC
-        for model, hl in pairs(npcHighlights) do
-            hl:Destroy()
-            npcHighlights[model] = nil
+-- ================= ФУНКЦИИ ДЛЯ NPC =================
+local function findEnemiesFolder()
+    -- ищем папку Enemies регистронезависимо
+    for _, child in ipairs(workspace:GetChildren()) do
+        if child:IsA("Folder") and string.lower(child.Name) == "enemies" then
+            return child
         end
-        return
+    end
+    return nil
+end
+
+local function scanForNPCs()
+    local enemiesFolder = findEnemiesFolder()
+    local scanRoot
+
+    if enemiesFolder then
+        scanRoot = enemiesFolder
+    else
+        -- если папки нет, сканируем весь Workspace (осторожно, но эффективно)
+        scanRoot = workspace
     end
 
-    -- собираем все модели с Humanoid внутри Enemies
     local npcModels = {}
-    for _, obj in ipairs(enemiesFolder:GetDescendants()) do
+    for _, obj in ipairs(scanRoot:GetDescendants()) do
         if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") then
-            npcModels[obj] = true
+            -- исключаем персонажей игроков
+            local plr = game.Players:GetPlayerFromCharacter(obj)
+            if not plr then
+                npcModels[obj] = true
+            end
         end
     end
 
@@ -85,7 +104,7 @@ local function scanForNPCs()
         end
     end
 
-    -- удаляем подсветки для моделей, которых больше нет
+    -- удаляем подсветки для исчезнувших NPC
     for model, hl in pairs(npcHighlights) do
         if not npcModels[model] then
             hl:Destroy()
@@ -96,7 +115,7 @@ end
 
 local function clearNPCESP()
     if npcScanThread then
-        npcScanThread = nil -- поток завершится сам
+        npcScanThread = nil
     end
     for model, hl in pairs(npcHighlights) do
         hl:Destroy()
@@ -104,7 +123,7 @@ local function clearNPCESP()
     npcHighlights = {}
 end
 
--- ===== Управление =====
+-- ================= ГЛАВНЫЕ ФУНКЦИИ ВКЛ/ВЫКЛ =================
 local function enableESP()
     espActive = true
     clearPlayerESP()
@@ -127,7 +146,7 @@ local function enableESP()
     npcScanThread = task.spawn(function()
         while espActive do
             scanForNPCs()
-            task.wait(3) -- интервал обновления (можно изменить)
+            task.wait(1) -- проверка каждую секунду
         end
     end)
 end
@@ -138,18 +157,10 @@ local function disableESP()
     clearNPCESP()
 end
 
--- Автоматическое отключение при удалении GUI (если это нужно)
--- Вставьте этот код в ваше меню после создания ScreenGui (или используйте функцию disableESP в кнопке Unload)
---[[
+-- ================= АВТООТКЛЮЧЕНИЕ ПРИ УДАЛЕНИИ GUI =================
+local playerGui = player:WaitForChild("PlayerGui")
 playerGui.ChildRemoved:Connect(function(child)
     if child.Name == "TheDarkScriptGUI" then
         disableESP()
     end
 end)
-]]
-
--- Вернуть функции для использования в меню
-return {
-    enable = enableESP,
-    disable = disableESP
-}
