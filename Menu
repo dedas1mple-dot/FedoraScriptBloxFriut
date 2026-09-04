@@ -2,12 +2,10 @@
 local player = game.Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Удаляем предыдущее меню, если есть
 if playerGui:FindFirstChild("TheDarkScriptGUI") then
     playerGui.TheDarkScriptGUI:Destroy()
 end
 
--- =================== СОЗДАНИЕ GUI ===================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "TheDarkScriptGUI"
 ScreenGui.ResetOnSpawn = false
@@ -34,7 +32,6 @@ local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 8)
 UICorner.Parent = MainFrame
 
--- Сайдбар
 local Sidebar = Instance.new("Frame")
 Sidebar.Size = UDim2.new(0, 180, 1, 0)
 Sidebar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -52,7 +49,6 @@ SidebarFix.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 SidebarFix.BorderSizePixel = 0
 SidebarFix.Parent = Sidebar
 
--- Заголовок
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -10, 0, 50)
 Title.Position = UDim2.new(0, 10, 0, 0)
@@ -71,7 +67,6 @@ TopLine.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 TopLine.BorderSizePixel = 0
 TopLine.Parent = MainFrame
 
--- Контентная область
 local ContentArea = Instance.new("Frame")
 ContentArea.Size = UDim2.new(1, -180, 1, -50)
 ContentArea.Position = UDim2.new(0, 180, 0, 50)
@@ -79,11 +74,11 @@ ContentArea.BackgroundTransparency = 1
 ContentArea.ClipsDescendants = true
 ContentArea.Parent = MainFrame
 
--- =================== СОЗДАНИЕ СТРАНИЦ ===================
+-- Страницы
 local function createPage()
     local page = Instance.new("Frame")
     page.Size = UDim2.new(1, 0, 1, 0)
-    page.Position = UDim2.new(0, 0, 1, 0) -- скрыта по умолчанию
+    page.Position = UDim2.new(0, 0, 1, 0)
     page.BackgroundTransparency = 1
     page.Parent = ContentArea
     return page
@@ -94,7 +89,7 @@ local PvPPage = createPage()
 local VisualsPage = createPage()
 local InfoPage = createPage()
 
--- Для каждой страницы создаём ScrollingFrame и внутренний контейнер (для модулей)
+-- Прокрутка и контейнеры
 local function createScrollContainer(page)
     local scrolling = Instance.new("ScrollingFrame")
     scrolling.Size = UDim2.new(1, 0, 1, 0)
@@ -122,7 +117,7 @@ local PvPScrolling, PvPContainer = createScrollContainer(PvPPage)
 local VisualsScrolling, VisualsContainer = createScrollContainer(VisualsPage)
 local InfoScrolling, InfoContainer = createScrollContainer(InfoPage)
 
--- Для General создаём две колонки (как в оригинале)
+-- Специальная раскладка для General (две колонки)
 local GeneralLeftCol = Instance.new("Frame")
 GeneralLeftCol.Size = UDim2.new(0.5, -15, 1, 0)
 GeneralLeftCol.Position = UDim2.new(0, 10, 0, 10)
@@ -143,7 +138,7 @@ RightLayout.SortOrder = Enum.SortOrder.LayoutOrder
 RightLayout.Padding = UDim.new(0, 10)
 RightLayout.Parent = GeneralRightCol
 
--- Сохраняем ссылки в глобальные переменные для модулей
+-- Глобальные ссылки для модулей
 _G.GeneralScrolling = GeneralScrolling
 _G.GeneralLeftCol = GeneralLeftCol
 _G.GeneralRightCol = GeneralRightCol
@@ -154,7 +149,7 @@ _G.VisualsContainer = VisualsContainer
 _G.InfoScrolling = InfoScrolling
 _G.InfoContainer = InfoContainer
 
--- =================== ФУНКЦИИ СОЗДАНИЯ UI ===================
+-- Функции создания UI (сохраняем в _G)
 local function CreateSection(parent, titleText, height)
     local Section = Instance.new("Frame")
     Section.Size = UDim2.new(1, 0, 0, height)
@@ -295,13 +290,12 @@ local function CreateLabel(parent, text)
     return Lbl
 end
 
--- Сохраняем функции в глобальные для модулей
 _G.CreateSection = CreateSection
 _G.CreateToggle = CreateToggle
 _G.CreateButton = CreateButton
 _G.CreateLabel = CreateLabel
 
--- =================== ВКЛАДКИ (КНОПКИ) ===================
+-- Кнопки вкладок
 local function createTabButton(name, iconId, position)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, -20, 0, 35)
@@ -341,12 +335,11 @@ local TabPvP, TabPvPText, TabPvPIcon = createTabButton("PvP", "rbxassetid://4391
 local TabVisuals, TabVisualsText, TabVisualsIcon = createTabButton("Visuals", "rbxassetid://113542807465335", 150)
 local TabInfo, TabInfoText, TabInfoIcon = createTabButton("Info", "rbxassetid://4871684504", 195)
 
--- Активируем первую вкладку
 TabGeneral.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 TabGeneralText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TabGeneralIcon.ImageTransparency = 0
 
--- =================== УПРАВЛЕНИЕ ВКЛАДКАМИ ===================
+-- Управление вкладками
 local currentTab = "General"
 local isAnimating = false
 
@@ -377,15 +370,17 @@ local function loadModule(moduleName)
     if not url then return end
 
     local success, err = pcall(function()
-        loadstring(game:HttpGet(url))()
+        local code = game:HttpGet(url)
+        loadstring(code)()
     end)
 
     if not success then
         warn("Ошибка загрузки модуля " .. moduleName .. ": " .. tostring(err))
+        print("Ошибка загрузки модуля " .. moduleName .. ": " .. tostring(err))
         game:GetService("StarterGui"):SetCore("SendNotification", {
             Title = "Ошибка",
-            Text = "Не удалось загрузить " .. moduleName,
-            Duration = 5
+            Text = "Не удалось загрузить " .. moduleName .. ":\n" .. tostring(err),
+            Duration = 10
         })
     end
 end
@@ -398,12 +393,10 @@ local function switchTab(tabName)
     local oldPage = pages[old]
     local newPage = pages[tabName]
 
-    -- Анимация сдвига страниц
     game:GetService("TweenService"):Create(oldPage, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(0, 0, -1, 0)}):Play()
     newPage.Position = UDim2.new(0, 0, 1, 0)
     game:GetService("TweenService"):Create(newPage, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)}):Play()
 
-    -- Обновляем стили кнопок
     local oldBtnData = buttons[old]
     local newBtnData = buttons[tabName]
     game:GetService("TweenService"):Create(oldBtnData.btn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(35, 35, 35)}):Play()
@@ -416,7 +409,6 @@ local function switchTab(tabName)
 
     currentTab = tabName
 
-    -- Загружаем модуль вкладки, если ещё не загружен
     if not loadedModules[tabName] then
         loadModule(tabName)
         loadedModules[tabName] = true
@@ -431,7 +423,6 @@ TabPvP.MouseButton1Click:Connect(function() switchTab("PvP") end)
 TabVisuals.MouseButton1Click:Connect(function() switchTab("Visuals") end)
 TabInfo.MouseButton1Click:Connect(function() switchTab("Info") end)
 
--- =================== ФУНКЦИЯ ВЫГРУЗКИ ===================
 function _G.UnloadMenu()
     local currentPos = MainFrame.Position
     local targetPos = UDim2.new(currentPos.X.Scale, currentPos.X.Offset, 1, MainFrame.Size.Y.Offset / 2)
@@ -442,7 +433,6 @@ function _G.UnloadMenu()
     end)
 end
 
--- =================== ОБРАБОТКА УДАЛЕНИЯ GUI ===================
 playerGui.ChildRemoved:Connect(function(child)
     if child.Name == "TheDarkScriptGUI" then
         if _G.cleanupAll then
@@ -451,6 +441,6 @@ playerGui.ChildRemoved:Connect(function(child)
     end
 end)
 
--- Загружаем General сразу, так как он открыт по умолчанию
+-- Загружаем General сразу
 loadModule("General")
 loadedModules.General = true
