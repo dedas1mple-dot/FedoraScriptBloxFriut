@@ -1,4 +1,4 @@
--- AutoFarm.lua (исправлено: без глобальных кликов, с экипировкой кулаков)
+-- AutoFarm.lua (исправлено: без глобальных кликов, с RemoteEvents)
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
@@ -63,19 +63,33 @@ local function findNearestModel(name, parent)
     return nearest, minDistance
 end
 
--- ================== ВЗАИМОДЕЙСТВИЕ БЕЗ ГЛОБАЛЬНЫХ КЛИКОВ ==================
+-- ================== БЕЗОПАСНОЕ ВЗАИМОДЕЙСТВИЕ ==================
 local function interactWithModel(model)
     if not model then return false end
+
+    -- 1. Пробуем ClickDetector
     local clickDetector = model:FindFirstChildOfClass("ClickDetector")
     if clickDetector then
         fireclickdetector(clickDetector)
         return true
     end
 
+    -- 2. Пробуем ProximityPrompt
     local prompt = model:FindFirstChildOfClass("ProximityPrompt")
     if prompt then
         fireproximityprompt(prompt)
         return true
+    end
+
+    -- 3. Отправляем RemoteEvent (нужно найти в игре)
+    -- Ищем RemoteEvent в ReplicatedStorage, который отвечает за диалог/квест
+    local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
+    if remotes then
+        local dialogEvent = remotes:FindFirstChild("Dialog") or remotes:FindFirstChild("Talk") or remotes:FindFirstChild("Quest")
+        if dialogEvent then
+            dialogEvent:FireServer(model)
+            return true
+        end
     end
 
     return false
@@ -83,14 +97,17 @@ end
 
 -- ================== ВЫБОР КВЕСТА В GUI ==================
 local function selectQuestInGui()
-    -- Ищем кнопку Accept или подобную
     local playerGui = player:WaitForChild("PlayerGui")
     local buttons = playerGui:GetDescendants()
     for _, obj in ipairs(buttons) do
-        if obj:IsA("TextButton") and (string.find(string.lower(obj.Text), "accept") or string.find(string.lower(obj.Text), "ok") or string.find(string.lower(obj.Text), "да")) then
-            -- Нажимаем кнопку
-            obj.MouseButton1Click:Fire()
-            return true
+        if obj:IsA("TextButton") then
+            local text = string.lower(obj.Text)
+            if text:find("accept") or text:find("ok") or text:find("да") or text:find("принять") then
+                -- Нажимаем кнопку через событие
+                obj.MouseButton1Click:Fire()
+                task.wait(0.5)
+                return true
+            end
         end
     end
     return false
@@ -113,12 +130,11 @@ local function takeQuest(quest)
         end
     end
 
-    -- Кликаем по NPC
+    -- Находим NPC и взаимодействуем
     local questGiver = findNearestModel(quest.questGiverName)
     if questGiver and interactWithModel(questGiver) then
         task.wait(1)
-        -- Пытаемся выбрать квест в открывшемся меню
-        selectQuestInGui()
+        selectQuestInGui() -- пытаемся нажать Accept
         task.wait(1)
         return true
     end
@@ -135,8 +151,19 @@ local function attackMob(mob)
     if mobHRP then
         smoothMoveTo(CFrame.new(mobHRP.Position + Vector3.new(0, 0, -3)), 250)
         task.wait(0.3)
-        -- Взаимодействуем с мобом (атакуем)
-        interactWithModel(mob) -- Если есть ClickDetector, сработает
+        -- Используем interactWithModel (если есть ClickDetector, сработает)
+        -- Если нет, пробуем отправить RemoteEvent для атаки
+        local success = interactWithModel(mob)
+        if not success then
+            -- Ищем RemoteEvent для атаки
+            local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
+            if remotes then
+                local attackEvent = remotes:FindFirstChild("Attack") or remotes:FindFirstChild("Damage") or remotes:FindFirstChild("Combat")
+                if attackEvent then
+                    attackEvent:FireServer(mob)
+                end
+            end
+        end
         task.wait(0.5)
     end
 end
@@ -151,7 +178,7 @@ local function checkHealth()
                 currentQuest = quest
             end
         end
-        -- Летим к квестодателю
+        -- Летим к квестодателю (безопасное место)
         if currentQuest.questGiverCFrame then
             smoothMoveTo(currentQuest.questGiverCFrame, 200)
         end
