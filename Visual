@@ -15,6 +15,20 @@ local playerConnections = {}
 local npcHighlights = {}
 local npcScanThread = nil
 
+-- Папки для сканирования NPC (можно расширить список)
+local NPC_FOLDERS = {"Enemies", "Bosses", "NPCs", "Mobs"}
+
+local function findNPCFolders()
+    local folders = {}
+    for _, folderName in ipairs(NPC_FOLDERS) do
+        local folder = workspace:FindFirstChild(folderName)
+        if folder then
+            table.insert(folders, folder)
+        end
+    end
+    return folders
+end
+
 local function addESPToPlayer(targetPlayer)
     if targetPlayer == game.Players.LocalPlayer then return end
 
@@ -59,15 +73,32 @@ end
 
 local function scanForNPCs()
     local npcModels = {}
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") then
-            local plr = game.Players:GetPlayerFromCharacter(obj)
-            if not plr then
-                npcModels[obj] = true
+    local folders = findNPCFolders()
+
+    -- Если папки не найдены, сканируем весь Workspace (но это будет реже)
+    if #folders == 0 then
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") then
+                local plr = game.Players:GetPlayerFromCharacter(obj)
+                if not plr then
+                    npcModels[obj] = true
+                end
+            end
+        end
+    else
+        for _, folder in ipairs(folders) do
+            for _, obj in ipairs(folder:GetDescendants()) do
+                if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") then
+                    local plr = game.Players:GetPlayerFromCharacter(obj)
+                    if not plr then
+                        npcModels[obj] = true
+                    end
+                end
             end
         end
     end
 
+    -- Добавляем новые подсветки
     for model in pairs(npcModels) do
         if not npcHighlights[model] then
             local highlight = Instance.new("Highlight")
@@ -82,6 +113,7 @@ local function scanForNPCs()
         end
     end
 
+    -- Удаляем подсветки для исчезнувших NPC
     for model, hl in pairs(npcHighlights) do
         if not npcModels[model] then
             hl:Destroy()
@@ -121,7 +153,7 @@ function _G.enableESP()
     npcScanThread = task.spawn(function()
         while espActive do
             scanForNPCs()
-            task.wait(2)
+            task.wait(5)  -- сканирование раз в 5 секунд (можно увеличить до 10)
         end
     end)
 end
