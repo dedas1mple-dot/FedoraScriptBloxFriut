@@ -53,7 +53,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -10, 0, 50)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "Fedora Script - Blox Fruit"  -- изменено
+Title.Text = "Fedora Script - Blox Fruit"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 14
@@ -358,8 +358,8 @@ local DevsValue = Instance.new("TextLabel")
 DevsValue.Size = UDim2.new(1, -20, 0, 25)
 DevsValue.Position = UDim2.new(0, 10, 0, 65)
 DevsValue.BackgroundTransparency = 1
-DevsValue.Text = "Fedora team"  -- изменено
-DevsValue.TextColor3 = Color3.fromRGB(255, 255, 255)  -- изменено на белый
+DevsValue.Text = "Fedora team"
+DevsValue.TextColor3 = Color3.fromRGB(255, 255, 255)
 DevsValue.Font = Enum.Font.GothamBold
 DevsValue.TextSize = 13
 DevsValue.TextXAlignment = Enum.TextXAlignment.Left
@@ -402,7 +402,7 @@ local GameValue = Instance.new("TextLabel")
 GameValue.Size = UDim2.new(1, -20, 0, 25)
 GameValue.Position = UDim2.new(0, 10, 0, 185)
 GameValue.BackgroundTransparency = 1
-GameValue.Text = "Blox Fruit"  -- изменено для соответствия названию
+GameValue.Text = "Blox Fruit"
 GameValue.TextColor3 = Color3.fromRGB(200, 200, 200)
 GameValue.Font = Enum.Font.Gotham
 GameValue.TextSize = 13
@@ -645,22 +645,89 @@ VisualsLayout.Padding = UDim.new(0, 10)
 VisualsLayout.Parent = VisualsCol
 
 
+-- ============ ВСТРОЕННЫЙ ESP ============
+local espConnections = {}
+local espActive = false
+
+local function clearESP()
+    for _, plr in pairs(game.Players:GetPlayers()) do
+        if plr.Character and plr.Character:FindFirstChild("ESPHighlight") then
+            plr.Character.ESPHighlight:Destroy()
+        end
+    end
+    for _, conn in pairs(espConnections) do
+        conn:Disconnect()
+    end
+    espConnections = {}
+end
+
+local function addESPToPlayer(targetPlayer)
+    if targetPlayer == player then return end
+
+    local function onCharacterAdded(character)
+        local humanoid = character:WaitForChild("Humanoid", 5)
+        if not humanoid then return end
+
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "ESPHighlight"
+        highlight.FillColor = Color3.fromRGB(255, 75, 100)
+        highlight.FillTransparency = 0.5
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlight.OutlineTransparency = 1
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        highlight.Parent = character
+    end
+
+    local function onCharacterRemoving(character)
+        local hl = character:FindFirstChild("ESPHighlight")
+        if hl then hl:Destroy() end
+    end
+
+    if targetPlayer.Character then
+        onCharacterAdded(targetPlayer.Character)
+    end
+
+    table.insert(espConnections, targetPlayer.CharacterAdded:Connect(onCharacterAdded))
+    table.insert(espConnections, targetPlayer.CharacterRemoving:Connect(onCharacterRemoving))
+end
+
+local function enableESP()
+    espActive = true
+    clearESP()
+
+    for _, plr in pairs(game.Players:GetPlayers()) do
+        addESPToPlayer(plr)
+    end
+
+    table.insert(espConnections, game.Players.PlayerAdded:Connect(function(plr)
+        if espActive then
+            addESPToPlayer(plr)
+        end
+    end))
+
+    table.insert(espConnections, game.Players.PlayerRemoving:Connect(function(plr)
+        if plr.Character and plr.Character:FindFirstChild("ESPHighlight") then
+            plr.Character.ESPHighlight:Destroy()
+        end
+    end))
+end
+
+local function disableESP()
+    espActive = false
+    clearESP()
+end
+-- ======================================
+
+
 local ESPSection = CreateSection(VisualsCol, "ESP", 90)
 
-local espEnabled = false
 local ESPToggle, getESPState = CreateToggle(ESPSection, "ESP Enabled", false)
 
 ESPToggle.MouseButton1Click:Connect(function()
-	task.wait(0.1)
-	if getESPState() then
-		espEnabled = true
-		loadstring(game:HttpGet("https://raw.githubusercontent.com/dedas1mple-dot/TheDarkScriptInkGame/refs/heads/main/esp.lua"))()
-	else
-		espEnabled = false
-		for _, plr in pairs(game.Players:GetPlayers()) do
-			if plr.Character and plr.Character:FindFirstChild("ESPHighlight") then
-				plr.Character.ESPHighlight:Destroy()
-			end
-		end
-	end
+    task.wait(0.1)
+    if getESPState() then
+        enableESP()
+    else
+        disableESP()
+    end
 end)
