@@ -1,4 +1,4 @@
--- AutoFarm.lua (исправлено: клик по экрану для NPC)
+-- AutoFarm.lua (исправлен поиск кнопки подтверждения квеста)
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
@@ -70,7 +70,6 @@ local function clickOnScreenPosition(position)
     local screenPos, onScreen = camera:WorldToScreenPoint(position)
     if not onScreen then return false end
 
-    -- Перемещаем мышь и кликаем
     mousemoveabs(screenPos.X, screenPos.Y)
     task.wait(0.1)
     mouse1click()
@@ -104,20 +103,55 @@ local function interactWithModel(model)
     return false
 end
 
--- ================== ВЫБОР КВЕСТА В GUI ==================
+-- ================== ВЫБОР КВЕСТА В GUI (УЛУЧШЕННЫЙ) ==================
 local function selectQuestInGui()
     local playerGui = player:WaitForChild("PlayerGui")
+    local possibleButtons = {}
+
+    -- Собираем все кнопки (TextButton, ImageButton)
     for _, obj in ipairs(playerGui:GetDescendants()) do
-        if obj:IsA("TextButton") then
-            local text = string.lower(obj.Text)
-            if text:find("accept") or text:find("ok") or text:find("да") or text:find("принять") then
-                obj.MouseButton1Click:Fire()
+        if obj:IsA("TextButton") or obj:IsA("ImageButton") then
+            table.insert(possibleButtons, obj)
+        end
+    end
+
+    -- Попытка 1: найти по тексту
+    local keywords = {"accept", "confirm", "ok", "okay", "yes", "да", "принять", "start", "take", "claim"}
+    for _, btn in ipairs(possibleButtons) do
+        local text = btn.Text or ""
+        local lower = string.lower(text)
+        for _, kw in ipairs(keywords) do
+            if lower:find(kw) then
+                btn.MouseButton1Click:Fire()
                 task.wait(0.5)
                 return true
             end
         end
     end
-    return false
+
+    -- Попытка 2: найти кнопку по имени
+    for _, btn in ipairs(possibleButtons) do
+        local name = btn.Name or ""
+        local lower = string.lower(name)
+        for _, kw in ipairs(keywords) do
+            if lower:find(kw) then
+                btn.MouseButton1Click:Fire()
+                task.wait(0.5)
+                return true
+            end
+        end
+    end
+
+    -- Попытка 3: кликнуть по центру экрана (где обычно кнопка подтверждения)
+    local camera = workspace.CurrentCamera
+    local viewportSize = camera.ViewportSize
+    local centerX = viewportSize.X / 2
+    local centerY = viewportSize.Y * 0.55 -- чуть ниже центра
+    mousemoveabs(centerX, centerY)
+    task.wait(0.1)
+    mouse1click()
+    task.wait(0.5)
+    return true
 end
 
 -- ================== ПОЛУЧЕНИЕ КВЕСТА ==================
@@ -140,9 +174,9 @@ local function takeQuest(quest)
     -- Находим NPC и взаимодействуем
     local questGiver = findNearestModel(quest.questGiverName)
     if questGiver and interactWithModel(questGiver) then
-        task.wait(1)
+        task.wait(1) -- ждём открытия GUI
         selectQuestInGui()
-        task.wait(1)
+        task.wait(1) -- ждём закрытия GUI
         return true
     end
     return false
@@ -164,16 +198,6 @@ local function attackMob(mob)
     -- Пробуем взаимодействовать (клик по мобу)
     if interactWithModel(mob) then
         return
-    end
-
-    -- Если не получилось, пробуем RemoteEvent для атаки
-    local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
-    if remotes then
-        local attackEvent = remotes:FindFirstChild("Attack") or remotes:FindFirstChild("Damage") or remotes:FindFirstChild("Combat")
-        if attackEvent then
-            attackEvent:FireServer(mob)
-            return
-        end
     end
 
     -- Запасной вариант: клик по экрану
@@ -224,6 +248,9 @@ local function autoFarmLoop()
             task.wait(5)
             continue
         end
+
+        -- После взятия квеста ждём, чтобы GUI точно закрылось
+        task.wait(1)
 
         local killed = 0
         while killed < currentQuest.requiredKills and autoFarmActive do
