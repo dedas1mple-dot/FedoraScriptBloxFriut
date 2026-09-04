@@ -1,115 +1,155 @@
-local player = game.Players.LocalPlayer
-local runService = game:GetService("RunService")
-
--- Настройки ESP (можно менять под свой вкус)
+-- ================= НАСТРОЙКИ ESP =================
 local ESP_CONFIG = {
-    FillColor = Color3.fromRGB(255, 75, 100),     -- цвет заливки
-    FillTransparency = 0.5,                       -- прозрачность заливки
-    OutlineColor = Color3.fromRGB(255, 255, 255), -- цвет обводки (если используется)
-    OutlineTransparency = 1,                      -- прозрачность обводки (1 = скрыта)
+    FillColor = Color3.fromRGB(255, 75, 100),      -- цвет заливки
+    FillTransparency = 0.5,                        -- прозрачность заливки
+    OutlineColor = Color3.fromRGB(255, 255, 255),  -- цвет обводки
+    OutlineTransparency = 1,                       -- обводка скрыта
     DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- видимость сквозь стены
 }
 
-local espEnabled = true
-local connections = {}
-local highlightCount = 0
+-- ================= ПЕРЕМЕННЫЕ =================
+local player = game.Players.LocalPlayer
+local espActive = false               -- флаг активности ESP
+local playerConnections = {}          -- связи для событий игроков
+local npcHighlights = {}              -- словарь: модель NPC -> Highlight
+local npcScanThread = nil             -- поток для сканирования NPC
 
--- Создание ESP для конкретного игрока
-local function createESP(targetPlayer)
+-- ================= ФУНКЦИИ ДЛЯ ИГРОКОВ =================
+local function addESPToPlayer(targetPlayer)
     if targetPlayer == player then return end
 
     local function onCharacterAdded(character)
-        -- Проверяем, что у персонажа есть Humanoid (R15 обязателен)
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        -- ждём появления Humanoid (R15)
+        local humanoid = character:WaitForChild("Humanoid", 5)
         if not humanoid then return end
 
-        -- Создаём Highlight
         local highlight = Instance.new("Highlight")
-        highlight.Name = "ESPHighlight"
+        highlight.Name = "ESPHighlight_Player"
         highlight.FillColor = ESP_CONFIG.FillColor
         highlight.FillTransparency = ESP_CONFIG.FillTransparency
         highlight.OutlineColor = ESP_CONFIG.OutlineColor
         highlight.OutlineTransparency = ESP_CONFIG.OutlineTransparency
         highlight.DepthMode = ESP_CONFIG.DepthMode
         highlight.Parent = character
-        highlightCount = highlightCount + 1
     end
 
     local function onCharacterRemoving(character)
-        local highlight = character:FindFirstChild("ESPHighlight")
-        if highlight then
-            highlight:Destroy()
-            highlightCount = highlightCount - 1
-        end
+        local hl = character:FindFirstChild("ESPHighlight_Player")
+        if hl then hl:Destroy() end
     end
 
-    -- Если персонаж уже существует, сразу применяем ESP
     if targetPlayer.Character then
         onCharacterAdded(targetPlayer.Character)
     end
 
-    -- Подписываемся на события появления/удаления персонажа
-    table.insert(connections, targetPlayer.CharacterAdded:Connect(onCharacterAdded))
-    table.insert(connections, targetPlayer.CharacterRemoving:Connect(onCharacterRemoving))
+    table.insert(playerConnections, targetPlayer.CharacterAdded:Connect(onCharacterAdded))
+    table.insert(playerConnections, targetPlayer.CharacterRemoving:Connect(onCharacterRemoving))
 end
 
--- Удаление ESP с конкретного игрока
-local function removeESP(targetPlayer)
-    if targetPlayer.Character then
-        local highlight = targetPlayer.Character:FindFirstChild("ESPHighlight")
-        if highlight then
-            highlight:Destroy()
-        end
-    end
-end
-
--- Включение ESP для всех текущих и будущих игроков
-local function enableESP()
-    -- Применяем ко всем существующим игрокам
+local function clearPlayerESP()
     for _, plr in pairs(game.Players:GetPlayers()) do
-        if plr ~= player then
-            createESP(plr)
+        if plr.Character and plr.Character:FindFirstChild("ESPHighlight_Player") then
+            plr.Character.ESPHighlight_Player:Destroy()
         end
     end
-
-    -- Новые игроки
-    table.insert(connections, game.Players.PlayerAdded:Connect(function(plr)
-        if espEnabled then
-            createESP(plr)
-        end
-    end))
-
-    -- Игроки, покинувшие сервер
-    table.insert(connections, game.Players.PlayerRemoving:Connect(function(plr)
-        removeESP(plr)
-    end))
-end
-
--- Полное отключение ESP и очистка ресурсов
-local function disableESP()
-    espEnabled = false
-
-    -- Удаляем все активные Highlight
-    for _, plr in pairs(game.Players:GetPlayers()) do
-        removeESP(plr)
-    end
-
-    -- Отключаем все обработчики событий
-    for _, conn in pairs(connections) do
+    for _, conn in pairs(playerConnections) do
         conn:Disconnect()
     end
-    connections = {}
+    playerConnections = {}
 end
 
--- Запускаем ESP
-enableESP()
-
--- Автоматическое отключение при закрытии GUI (если используется меню)
-local playerGui = player:WaitForChild("PlayerGui")
-playerGui.ChildRemoved:Connect(function(child)
-    if child.Name == "TheDarkScriptGUI" then
-        disableESP()
+-- ================= ФУНКЦИИ ДЛЯ NPC =================
+local function scanForNPCs()
+    -- проходим по всем объектам в Workspace
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        -- нас интересуют только модели с Humanoid
+        if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") then
+            -- исключаем персонажей игроков
+            local plr = game.Players:GetPlayerFromCharacter(obj)
+            if not plr then
+                -- если подсветки ещё нет, создаём
+                if not npcHighlights[obj] then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = "ESPHighlight_NPC"
+                    highlight.FillColor = ESP_CONFIG.FillColor
+                    highlight.FillTransparency = ESP_CONFIG.FillTransparency
+                    highlight.OutlineColor = ESP_CONFIG.OutlineColor
+                    highlight.OutlineTransparency = ESP_CONFIG.OutlineTransparency
+                    highlight.DepthMode = ESP_CONFIG.DepthMode
+                    highlight.Parent = obj
+                    npcHighlights[obj] = highlight
+                end
+            end
+        end
     end
-end)
 
--- Опционально: можно отключить ESP при смерти локального игрока (не обязательно)
+    -- удаляем подсветки для NPC, которых больше нет (модель удалена)
+    for model, highlight in pairs(npcHighlights) do
+        if not model.Parent then
+            highlight:Destroy()
+            npcHighlights[model] = nil
+        end
+    end
+end
+
+local function clearNPCESP()
+    -- останавливаем поток сканирования, если он есть
+    if npcScanThread then
+        npcScanThread = nil -- фактически поток завершится сам, но мы обнуляем ссылку
+    end
+    -- удаляем все подсветки NPC
+    for model, highlight in pairs(npcHighlights) do
+        highlight:Destroy()
+    end
+    npcHighlights = {}
+end
+
+-- ================= ГЛАВНЫЕ ФУНКЦИИ ВКЛ/ВЫКЛ =================
+local function enableESP()
+    espActive = true
+
+    -- очищаем старое (на всякий случай)
+    clearPlayerESP()
+    clearNPCESP()
+
+    -- подключаем игроков
+    for _, plr in pairs(game.Players:GetPlayers()) do
+        addESPToPlayer(plr)
+    end
+    table.insert(playerConnections, game.Players.PlayerAdded:Connect(function(plr)
+        if espActive then
+            addESPToPlayer(plr)
+        end
+    end))
+    table.insert(playerConnections, game.Players.PlayerRemoving:Connect(function(plr)
+        if plr.Character and plr.Character:FindFirstChild("ESPHighlight_Player") then
+            plr.Character.ESPHighlight_Player:Destroy()
+        end
+    end))
+
+    -- запускаем цикл сканирования NPC (каждые 5 секунд)
+    npcScanThread = task.spawn(function()
+        while espActive do
+            scanForNPCs()
+            task.wait(5)
+        end
+    end)
+end
+
+local function disableESP()
+    espActive = false
+    clearPlayerESP()
+    clearNPCESP()
+end
+
+-- ================= ИСПОЛЬЗОВАНИЕ =================
+-- Вызовите enableESP() для включения и disableESP() для выключения.
+-- Пример интеграции в меню (если нужно):
+-- ESPToggle.MouseButton1Click:Connect(function()
+--     task.wait(0.1)
+--     if getESPState() then
+--         enableESP()
+--     else
+--         disableESP()
+--     end
+-- end)
