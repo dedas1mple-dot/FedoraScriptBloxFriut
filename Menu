@@ -22,11 +22,19 @@ end)
 -- Главный фрейм
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 750, 0, 500)
-MainFrame.Position = UDim2.new(0.5, -375, 0.5, -250)
+MainFrame.Position = UDim2.new(0.5, -375, -1, -250) -- начальная позиция за верхней границей
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
+
+-- Анимация появления меню (выезд сверху)
+local showTween = game:GetService("TweenService"):Create(
+    MainFrame,
+    TweenInfo.new(0.6, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+    {Position = UDim2.new(0.5, -375, 0.5, -250)}
+)
+showTween:Play()
 
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 8)
@@ -78,7 +86,7 @@ ContentArea.Parent = MainFrame
 local function createPage()
     local page = Instance.new("Frame")
     page.Size = UDim2.new(1, 0, 1, 0)
-    page.Position = UDim2.new(0, 0, 1, 0)
+    page.Position = UDim2.new(0, 0, 1, 0) -- скрыта по умолчанию
     page.BackgroundTransparency = 1
     page.Parent = ContentArea
     return page
@@ -88,6 +96,9 @@ local GeneralPage = createPage()
 local PvPPage = createPage()
 local VisualsPage = createPage()
 local InfoPage = createPage()
+
+-- Делаем General видимой сразу
+GeneralPage.Position = UDim2.new(0, 0, 0, 0)
 
 -- Прокрутка и контейнеры
 local function createScrollContainer(page)
@@ -424,6 +435,11 @@ TabVisuals.MouseButton1Click:Connect(function() switchTab("Visuals") end)
 TabInfo.MouseButton1Click:Connect(function() switchTab("Info") end)
 
 function _G.UnloadMenu()
+    -- Очистка ESP и других ресурсов перед удалением
+    if _G.cleanupAll then
+        _G.cleanupAll()
+    end
+
     local currentPos = MainFrame.Position
     local targetPos = UDim2.new(currentPos.X.Scale, currentPos.X.Offset, 1, MainFrame.Size.Y.Offset / 2)
     local unloadAnimation = game:GetService("TweenService"):Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = targetPos})
@@ -441,6 +457,7 @@ playerGui.ChildRemoved:Connect(function(child)
     end
 end)
 
--- Загружаем General сразу
+-- Загружаем General с задержкой для плавности
+task.wait(0.4)
 loadModule("General")
 loadedModules.General = true
