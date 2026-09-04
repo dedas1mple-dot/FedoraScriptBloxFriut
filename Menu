@@ -93,6 +93,7 @@ local function createPage()
 end
 
 local GeneralPage = createPage()
+local FarmPage = createPage()
 local PvPPage = createPage()
 local VisualsPage = createPage()
 local InfoPage = createPage()
@@ -124,6 +125,7 @@ local function createScrollContainer(page)
 end
 
 local GeneralScrolling, GeneralContainer = createScrollContainer(GeneralPage)
+local FarmScrolling, FarmContainer = createScrollContainer(FarmPage)
 local PvPScrolling, PvPContainer = createScrollContainer(PvPPage)
 local VisualsScrolling, VisualsContainer = createScrollContainer(VisualsPage)
 local InfoScrolling, InfoContainer = createScrollContainer(InfoPage)
@@ -153,6 +155,8 @@ RightLayout.Parent = GeneralRightCol
 _G.GeneralScrolling = GeneralScrolling
 _G.GeneralLeftCol = GeneralLeftCol
 _G.GeneralRightCol = GeneralRightCol
+_G.FarmScrolling = FarmScrolling
+_G.FarmContainer = FarmContainer
 _G.PvPScrolling = PvPScrolling
 _G.PvPContainer = PvPContainer
 _G.VisualsScrolling = VisualsScrolling
@@ -341,11 +345,14 @@ local function createTabButton(name, iconId, position)
     return btn, label, icon
 end
 
+-- Добавляем вкладки (General, Farm, PvP, Visuals, Info)
 local TabGeneral, TabGeneralText, TabGeneralIcon = createTabButton("General", "rbxassetid://130068439240504", 60)
-local TabPvP, TabPvPText, TabPvPIcon = createTabButton("PvP", "rbxassetid://4391741881", 105)
-local TabVisuals, TabVisualsText, TabVisualsIcon = createTabButton("Visuals", "rbxassetid://113542807465335", 150)
-local TabInfo, TabInfoText, TabInfoIcon = createTabButton("Info", "rbxassetid://4871684504", 195)
+local TabFarm, TabFarmText, TabFarmIcon = createTabButton("Farm", "rbxassetid://1234567890", 105) -- замените на свою иконку
+local TabPvP, TabPvPText, TabPvPIcon = createTabButton("PvP", "rbxassetid://4391741881", 150)
+local TabVisuals, TabVisualsText, TabVisualsIcon = createTabButton("Visuals", "rbxassetid://113542807465335", 195)
+local TabInfo, TabInfoText, TabInfoIcon = createTabButton("Info", "rbxassetid://4871684504", 240)
 
+-- Активируем первую вкладку
 TabGeneral.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 TabGeneralText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TabGeneralIcon.ImageTransparency = 0
@@ -356,6 +363,7 @@ local isAnimating = false
 
 local pages = {
     General = GeneralPage,
+    Farm = FarmPage,
     PvP = PvPPage,
     Visuals = VisualsPage,
     Info = InfoPage
@@ -363,6 +371,7 @@ local pages = {
 
 local buttons = {
     General = {btn = TabGeneral, text = TabGeneralText, icon = TabGeneralIcon},
+    Farm = {btn = TabFarm, text = TabFarmText, icon = TabFarmIcon},
     PvP = {btn = TabPvP, text = TabPvPText, icon = TabPvPIcon},
     Visuals = {btn = TabVisuals, text = TabVisualsText, icon = TabVisualsIcon},
     Info = {btn = TabInfo, text = TabInfoText, icon = TabInfoIcon}
@@ -373,6 +382,7 @@ local loadedModules = {}
 local function loadModule(moduleName)
     local moduleUrls = {
         General = "https://raw.githubusercontent.com/dedas1mple-dot/FedoraScriptBloxFriut/refs/heads/main/General",
+        Farm = "https://raw.githubusercontent.com/dedas1mple-dot/FedoraScriptBloxFriut/refs/heads/main/Farm",
         PvP = "https://raw.githubusercontent.com/dedas1mple-dot/FedoraScriptBloxFriut/refs/heads/main/Pvp",
         Visuals = "https://raw.githubusercontent.com/dedas1mple-dot/FedoraScriptBloxFriut/refs/heads/main/Visual",
         Info = "https://raw.githubusercontent.com/dedas1mple-dot/FedoraScriptBloxFriut/refs/heads/main/Info"
@@ -430,12 +440,12 @@ local function switchTab(tabName)
 end
 
 TabGeneral.MouseButton1Click:Connect(function() switchTab("General") end)
+TabFarm.MouseButton1Click:Connect(function() switchTab("Farm") end)
 TabPvP.MouseButton1Click:Connect(function() switchTab("PvP") end)
 TabVisuals.MouseButton1Click:Connect(function() switchTab("Visuals") end)
 TabInfo.MouseButton1Click:Connect(function() switchTab("Info") end)
 
 function _G.UnloadMenu()
-    -- Очистка ESP и других ресурсов перед удалением
     if _G.cleanupAll then
         _G.cleanupAll()
     end
